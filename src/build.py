@@ -43,10 +43,15 @@ head = """<!doctype html>
 <script src="%sfirebase-firestore-compat.js"></script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
-<style>html.native #fsBtn{display:none!important}</style>
+<style>
+html.chromeless .bar{display:none!important}
+#fsExit{position:fixed;z-index:7;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:calc(12px + env(safe-area-inset-left,0px));width:40px;height:40px;padding:0;border-radius:50%;
+  font-size:15px;background:color-mix(in srgb,var(--bar) 85%,transparent);opacity:.55;display:none}
+html.chromeless #fsExit{display:block}
+</style>
 </head>
 <body>
-""" % (FB, FB, FB)
+""".replace("%s", FB)
 out = head + page.rstrip() + "\n</body>\n</html>\n"
 open(os.path.join(root, "index.html"), "w", encoding="utf-8").write(out)
 import shutil

@@ -207,9 +207,46 @@
     return box;
   }
 
+  /* ---------- the home-screen widget (Android): today's plant, the percent and the streak ---------- */
+  const Widget = () => isNative() && window.Capacitor.Plugins && window.Capacitor.Plugins.PlantWidget;
+  let wLast = "";
+  function progress() {
+    const W = Widget(); if (!W || !ctx) return;
+    const s = ctx.status(); if (!s.plan) return;          // only the tractate that holds the plan knows today's reading
+    const d = new Date(), day = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const key = [day, s.pct, s.streak].join("|"); if (key === wLast) return; wLast = key;
+    W.update({ day, pct: s.pct, streak: s.streak, plan: true }).catch(() => {});
+  }
+  async function launchedFromWidget() {
+    const W = Widget(); if (!W) return;
+    try { const r = await W.consumeLaunch(); if (r && r.bite) openBiteSoon(); } catch (e) {}
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") launchedFromWidget(); });
+
+  /* ---------- full screen in the app: the app's bar and Android's own bars step aside ---------- */
+  function setFs(on) {
+    document.documentElement.classList.toggle("chromeless", on);
+    try { localStorage.setItem("babli-fs", on ? "1" : "0"); } catch (e) {}
+    const fb = document.getElementById("fsBtn"); if (fb) fb.setAttribute("aria-pressed", String(on));
+    const U = isNative() && window.Capacitor.Plugins && window.Capacitor.Plugins.SystemUi;
+    if (U) U.setImmersive({ on }).catch(() => {});
+    setTimeout(() => { try { ctx.relayout(); } catch (e) {} }, 250);
+  }
+  function setupFullscreen() {
+    if (!isNative()) return;                       // in a browser the page's own full-screen button is used
+    const fb = document.getElementById("fsBtn"); if (!fb) return;
+    fb.hidden = false; fb.onclick = () => setFs(!document.documentElement.classList.contains("chromeless"));
+    const ex = document.createElement("button"); ex.id = "fsExit"; ex.textContent = "⛶"; ex.setAttribute("aria-label", "יציאה ממסך מלא");
+    ex.onclick = () => setFs(false); document.body.appendChild(ex);
+    let on = false; try { on = localStorage.getItem("babli-fs") === "1"; } catch (e) {}
+    if (on) setFs(true);
+  }
+
   window.BABLI_WEB = {
     init(c) {
       ctx = c;
+      launchedFromWidget();
+      setupFullscreen();
       idbAll().then(register);
       // a notification opens the app at the next bite
       if (/[?&]bite=1/.test(location.search)) {
@@ -217,7 +254,8 @@
         try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
       }
     },
-    blocks() { return [accountBlock(), notifyBlock(), fontBlock()]; }
+    blocks() { return [accountBlock(), notifyBlock(), fontBlock()]; },
+    progress
   };
 
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});

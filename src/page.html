@@ -796,7 +796,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(!done(d)) d--;
     for(;;d--){ if(dayDate(d).getDay()===6) continue; if(done(d)) n++; else break; if(n>3650) break; }
     return n; }
-  function refreshBadge(){ const b=$("badge"); b.hidden=!(ST.plan&&todayPortion()&&!dayDone()); b.textContent="•"; }
+  function refreshBadge(){ const b=$("badge"); b.hidden=!(ST.plan&&todayPortion()&&!dayDone()); b.textContent="•";
+    if(window.BABLI_WEB&&window.BABLI_WEB.progress) try{ window.BABLI_WEB.progress(); }catch(e){} }
   function lateTxt(){ const st=planStatus(); if(!st) return ""; const amt=planAmt(), d=st.diff, days=Math.round(Math.abs(d)/amt);
     if(d<-amt*0.5) return "מאחר בכ־"+Math.max(1,days)+" ימים"; if(d>amt*1.5) return "מקדים בכ־"+Math.max(1,days-1)+" ימים"; return ""; }
   // there is one plan; remember which tractate holds it (in the account too), so "היום" works from any tractate
@@ -1135,7 +1136,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   window.addEventListener("hashchange",()=>{ const x=parseHashFull(); if(!x) return;
     if(x.tr!==TR.key) loadTractate(x.tr,x.a); });
   if(window.BABLI_WEB&&window.BABLI_WEB.init) window.BABLI_WEB.init({h,FONTS,setFont,fontKey:()=>fontKey,relayout,toast,
-    reinit:()=>{ prefsDone=false; if(A) storeP=initStore(); }, openBite:()=>{ if(A) jumpToday(); }});
+    reinit:()=>{ prefsDone=false; if(A) storeP=initStore(); }, openBite:()=>{ if(A) jumpToday(); },
+    status:()=>({plan:!!(A&&ST.plan), pct:A&&ST.plan?pctToday():0, streak:A&&ST.plan?streak():0})});
   loadTractList().then(()=>{ const hx=parseHashFull(); loadTractate(hx?hx.tr:lsGet("tr","shabbat"),hx?hx.a:null); });
 })();
 </script>
