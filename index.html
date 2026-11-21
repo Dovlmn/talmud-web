@@ -1075,8 +1075,10 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   }
 
   /* ---------- moving all data between versions of the app ---------- */
-  function exportAll(){ const o={v:1,app:"babli-betur",t:{}};
+  function exportAll(){ const o={v:2,app:"babli-betur",t:{},p:{}};
     for(const t of TRACTS) o.t[t.key]={st:lsGet(t.ls+"st",null),notes:lsGet(t.ls+"notes",{}),nm:lsGet(t.ls+"notes-m",{})};
+    for(const k of PREFK){ const x=lsGet(k,null); if(x!==null) o.p[k]=x; }
+    for(const t of TRACTS){ const a=lsGet(t.ls+"amud",null); if(a!==null) o.p["amud:"+t.key]=a; }
     return JSON.stringify(o); }
   function importAll(txt){
     const o=JSON.parse(txt); if(!o||o.app!=="babli-betur"||!o.t) throw new Error("bad");
@@ -1085,6 +1087,11 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       const st=lsGet(t.ls+"st",null); if(x.st&&(!st||!st.plan||(x.st.pos||0)>=(st.pos||0))) lsSet(t.ls+"st",x.st);
       lsSet(t.ls+"notes",{...lsGet(t.ls+"notes",{}),...(x.notes||{})});
       const nm=lsGet(t.ls+"notes-m",{}); for(const k of Object.keys(x.nm||{})) nm[k]=now; lsSet(t.ls+"notes-m",nm); }
+    // display settings, the plan's tractate, the mark, the place in each tractate
+    for(const [k,x] of Object.entries(o.p||{})){
+      if(k.startsWith("amud:")){ const t=TRACTS.find(t=>t.key===k.slice(5)); if(t) lsSet(t.ls+"amud",x); }
+      else if(PREFK.includes(k)) lsSet(k,x); }
+    try{ localStorage.setItem(LS("prefs-m"),JSON.stringify(now)); }catch(e){}
   }
   function transferBlock(){
     const out=h("div",{class:"block"},h("h3",{},"העברת נתונים"),
@@ -1094,8 +1101,12 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       h("button",{onclick:()=>{ const s=exportAll(); box.value=s;
         const done=()=>{ msg.textContent="הנתונים הועתקו. הדבק אותם בגרסה החדשה, בהגדרות ← העברת נתונים."; };
         try{ navigator.clipboard.writeText(s).then(done,()=>{ box.select(); msg.textContent="סמן את הטקסט בתיבה והעתק אותו ידנית."; }); }catch(e){ box.select(); msg.textContent="סמן את הטקסט בתיבה והעתק אותו ידנית."; } }},"העתקת הנתונים"),
-      h("button",{onclick:()=>{ try{ importAll(box.value.trim()); msg.textContent="הנתונים נטענו."; loadTractate(TR.key,current); }catch(e){ msg.textContent="זה לא נראה כמו נתונים שהועתקו מהאפליקציה. העתק שוב ונסה."; } }},"טעינת נתונים שהודבקו")),
+      h("button",{onclick:()=>{ try{ importAll(box.value.trim()); msg.textContent="הנתונים נטענו."; setTimeout(()=>location.replace(location.pathname),600); }catch(e){ msg.textContent="זה לא נראה כמו נתונים שהועתקו מהאפליקציה. העתק שוב ונסה."; } }},"טעינת נתונים שהודבקו")),
       box,msg);
+    // or from a file (a phone handles a file more easily than a long pasted text)
+    const fi=h("input",{type:"file",accept:".json,application/json,text/plain"});
+    fi.onchange=async()=>{ const f=fi.files[0]; if(!f) return; try{ importAll((await f.text()).trim()); msg.textContent="הנתונים נטענו מהקובץ."; setTimeout(()=>location.replace(location.pathname),600); }catch(e){ msg.textContent="הקובץ לא נראה כמו נתונים של האפליקציה."; } };
+    out.append(h("div",{class:"row"},h("span",{class:"note"},"או מקובץ:"),fi));
     return out;
   }
 
