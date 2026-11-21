@@ -19,7 +19,7 @@
         const changed = (u && u.uid) !== (user && user.uid);
         user = u || null; readyRes();
         if (firstAuth) { firstAuth = false; } else if (changed && ctx) ctx.reinit();
-        if (user) loadMyFonts(); refreshAccount();
+        if (user) { loadMyFonts(); setupPush(); } refreshAccount();
       });
     } catch (e) { console.warn(e); readyRes(); }
   } else readyRes();
@@ -170,17 +170,54 @@
       msg);
   }
 
+  /* ---------- reminders (מצב קרצייה): this phone receives them; the hourly job decides when ---------- */
+  const Push = () => isNative() && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
+  let pushReady = false, notifyCfg = { on: true, from: 7, to: 22 };
+  const notifyDoc = () => fdb.doc("data/users/" + user.uid + "/notify");
+  function openBiteSoon() {
+    let n = 0; const t = setInterval(() => { n++; try { ctx && ctx.openBite(); } catch (e) {} if (document.querySelector(".u.bite") || n > 40) clearInterval(t); }, 500);
+  }
+  async function setupPush() {
+    const P = Push(); if (!P || !user || !fdb) return;
+    try { const s = await notifyDoc().get(); if (s.exists) notifyCfg = { ...notifyCfg, ...s.data() }; } catch (e) {}
+    if (!pushReady) {
+      pushReady = true;
+      P.addListener("registration", async t => {
+        try { await fdb.doc("data/users/" + user.uid + "/devices").collection("list").doc(t.value.slice(-40).replace(/[^\w-]/g, "_"))
+          .set({ token: t.value, t: Date.now(), platform: "android" }); } catch (e) {}
+      });
+      P.addListener("pushNotificationActionPerformed", () => openBiteSoon());
+      try { await P.createChannel({ id: "bites", name: "ביסים", description: "תזכורת לביס הבא כשקריאת היום עוד לא הושלמה", importance: 4, vibration: true }); } catch (e) {}
+    }
+    if (notifyCfg.on === false) return;
+    try { let p = await P.checkPermissions(); if (p.receive !== "granted") p = await P.requestPermissions(); if (p.receive === "granted") await P.register(); } catch (e) {}
+  }
+  function notifyBlock() {
+    const h = ctx.h;
+    const box = h("div", { class: "block" }, h("h3", {}, "תזכורות (מצב קרצייה)"));
+    if (!Push()) { box.append(h("div", { class: "note" }, "התזכורות מגיעות לאפליקציית האנדרואיד, כשאתה מחובר לחשבון.")); return box; }
+    if (!user) { box.append(h("div", { class: "note" }, "התחבר לחשבון כדי לקבל תזכורות.")); return box; }
+    const save = () => notifyDoc().set({ on: notifyCfg.on !== false, from: notifyCfg.from, to: notifyCfg.to }, { merge: true }).catch(() => {});
+    const hours = sel => { const o = []; for (let i = 5; i <= 24; i++) o.push(h("option", { value: String(i), selected: i === sel }, String(i).padStart(2, "0") + ":00")); return o; };
+    const fr = h("select", {}, hours(notifyCfg.from)), to = h("select", {}, hours(notifyCfg.to));
+    fr.onchange = () => { notifyCfg.from = +fr.value; save(); }; to.onchange = () => { notifyCfg.to = +to.value; save(); };
+    const tg = h("button", { "aria-pressed": String(notifyCfg.on !== false), onclick: () => { notifyCfg.on = notifyCfg.on === false; tg.setAttribute("aria-pressed", String(notifyCfg.on)); save(); if (notifyCfg.on) setupPush(); } }, "תזכורות");
+    box.append(h("div", { class: "note" }, "כל עוד קריאת היום לא הושלמה: תזכורת כל שעתיים, ולחיצה עליה פותחת את הביס הבא. לא בשבת ובחג, ולא בערב שבת וערב חג אחרי 14:00."),
+      h("div", { class: "row" }, tg, h("label", { class: "f" }, "משעה", fr), h("label", { class: "f" }, "עד שעה", to)));
+    return box;
+  }
+
   window.BABLI_WEB = {
     init(c) {
       ctx = c;
       idbAll().then(register);
       // a notification opens the app at the next bite
       if (/[?&]bite=1/.test(location.search)) {
-        let n = 0; const t = setInterval(() => { n++; try { ctx.openBite(); } catch (e) {} if (document.querySelector(".u.bite") || n > 40) clearInterval(t); }, 500);
+        openBiteSoon();
         try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
       }
     },
-    blocks() { return [accountBlock(), fontBlock()]; }
+    blocks() { return [accountBlock(), notifyBlock(), fontBlock()]; }
   };
 
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
