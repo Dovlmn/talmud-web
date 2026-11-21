@@ -1,0 +1,1152 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>בבלי</title>
+<meta name="description" content="לימוד ש״ס בבלי: טקסט מנוקד בטורים, שטיינזלץ ורש״י, תוכנית יומית">
+<meta name="theme-color" content="#28566e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="בבלי">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="config.js"></script>
+<script src="webapp.js"></script>
+<style>html.native #fsBtn{display:none!important}</style>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Assistant:wght@400;600;700&display=swap">
+<style>
+/* Layout: a one-screen reader. Text is cut into window-high screens of narrow columns (one on a phone);
+   swipe, wheel, keys or the corner buttons move a whole screen. */
+:root{
+  --paper:#f6f7f5; --ink:#1b2127; --muted:#6a747d; --line:#dfe3e2; --soft:#eceeec;
+  --accent:#28566e; --bar:#f6f7f5; --st:#5b6f63;
+  --ok:#2f7a4f; --warn:#b0582a; --bad:#a83a3a; --note:#2d63a8;
+  --text:"Frank Ruhl Libre","David Libre","Noto Serif Hebrew",Georgia,serif;
+  --ui:"Assistant","Heebo",system-ui,sans-serif;
+  --gfont:var(--text); --sfont:var(--gfont);
+  --size:20px; --lh:1.7; --ugap:.7em;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#13181c; --ink:#e4e7e3; --muted:#97a2ab; --line:#283037; --soft:#1b2227;
+  --accent:#8fc0d6; --bar:#13181c; --st:#a9bcae;
+  --ok:#7fc79b; --warn:#e39a6f; --bad:#e08585; --note:#86b3ea; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#13181c; --ink:#e4e7e3; --muted:#97a2ab; --line:#283037; --soft:#1b2227;
+  --accent:#8fc0d6; --bar:#13181c; --st:#a9bcae;
+  --ok:#7fc79b; --warn:#e39a6f; --bad:#e08585; --note:#86b3ea; color-scheme:dark}
+
+html{height:100%;box-sizing:border-box;overflow:hidden;overscroll-behavior:none}
+body{height:100%;overflow:hidden;overscroll-behavior:none;display:flex;flex-direction:column;
+  background:var(--paper);color:var(--ink);font-family:var(--ui);direction:rtl}
+[hidden]{display:none!important}
+
+/* bar */
+.bar{flex:none;background:var(--bar);border-bottom:1px solid var(--line);
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:6px}
+.bar-in{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.where{display:flex;align-items:baseline;gap:10px;margin-inline-end:auto;min-width:0}
+.mas{font-family:var(--text);font-size:1.1rem;font-weight:700}
+#trSel{border-color:transparent;height:32px;padding:0 4px;background:transparent;max-width:14rem}
+#trSel:hover{border-color:var(--line)}
+.daf{font-size:.95rem;color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
+.ctrls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+button,select{font:600 .9rem var(--ui);color:var(--ink);background:transparent;border:1px solid var(--line);
+  border-radius:8px;height:32px;padding:0 10px;cursor:pointer}
+button:hover,select:hover{border-color:var(--accent);color:var(--accent)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+.icon{width:32px;padding:0}
+[aria-pressed="true"]{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--paper)!important}
+#todayBtn{display:inline-flex;align-items:center;gap:6px}
+.badge{min-width:1.4em;height:1.4em;border-radius:999px;background:var(--warn);color:var(--paper);font-size:.75rem;
+  display:inline-grid;place-items:center;padding:0 .35em;font-variant-numeric:tabular-nums}
+
+/* reader */
+#flow{flex:1;min-height:0;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:0}
+.sheet{font-family:var(--gfont);font-size:var(--size);line-height:var(--lh);box-sizing:border-box;overflow:hidden;
+  padding-block:14px 64px;column-fill:auto}
+.sheet.partial{column-fill:balance}
+.u{margin:0 0 var(--ugap);text-wrap:pretty}
+.u.brk{margin-bottom:0}
+.u.m,.u.g{margin-top:1.3em}
+.u.cont{margin-top:0}
+.u.ss{border-top:1px solid var(--line);padding-top:.35em}
+.u.ss.m,.u.ss.g{border-top:0;padding-top:0}
+.em{font-weight:700;color:var(--accent)}
+.light-quotes .q{font-weight:300}
+.face-font .bg,.face-font .mas,.face-font .u.h{font-family:var(--gfont);font-weight:700}
+.w{cursor:pointer;border-radius:3px}
+@media (hover:hover){.w:hover{background:var(--soft)}}
+.w.nq{background:color-mix(in srgb,var(--bad) 16%,transparent);box-shadow:0 2px 0 var(--bad)}
+.w.nn{background:color-mix(in srgb,var(--note) 16%,transparent);box-shadow:0 2px 0 var(--note)}
+.bg{font-family:var(--ui);font-size:.82em;font-weight:700;color:var(--paper);background:var(--accent);border-radius:5px;padding:.08em .5em;cursor:pointer;line-height:1.45;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.nctx{font-family:var(--gfont);font-size:1.15rem;line-height:1.7;color:var(--muted)}
+.nctx b{color:var(--ink);background:var(--soft);border-radius:3px;padding:0 .15em}
+.nctx .nloc{font-family:var(--ui);font-size:.75rem}
+.panel textarea{font:400 1.05rem/1.55 var(--ui);color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:8px;padding:10px 12px;resize:vertical;width:100%;box-sizing:border-box;min-height:5.5em}
+.seg3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.seg3 button{height:38px}
+.seg3 .c-q[aria-pressed="true"]{background:var(--bad)!important;border-color:var(--bad)!important}
+.seg3 .c-n[aria-pressed="true"]{background:var(--note)!important;border-color:var(--note)!important}
+.nview{border-inline-start:3px solid var(--note);padding:4px 12px;display:flex;flex-direction:column;gap:6px}
+.nview.t-q{border-color:var(--bad)}.nview.t-b{border-color:var(--accent)}
+.ntag{font-size:.78rem;font-weight:700;color:var(--note)}.t-q .ntag{color:var(--bad)}.t-b .ntag{color:var(--accent)}
+.ntext{font-size:1.05rem;white-space:pre-wrap}
+.fonts{display:flex;flex-direction:column;gap:6px}
+.fopt{height:auto;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 12px;text-align:start;font-weight:500}
+.fopt[aria-checked="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.fopt .fname{font-size:.8rem;font-weight:700;color:var(--accent)}
+.fopt .fsample{font-size:1.3rem;line-height:1.6;color:var(--ink)}
+.fopt .fsample.st{font-size:1.05rem;color:var(--st)}
+.st{color:var(--st);font-size:.9em;font-family:var(--sfont)}
+.ref{font-family:var(--ui);font-size:.6em;font-weight:600;color:var(--muted);white-space:nowrap;cursor:pointer;margin-inline-start:.3em;vertical-align:.12em;text-align:start}
+.ref::before{content:"("}.ref::after{content:")"}
+@media (hover:hover){.ref:hover{color:var(--accent)}}
+.norefs .ref,.stzon .ref{display:none}
+.justify .u{text-align:justify}
+.justify .u.h{text-align:center}
+.justify .u.brk{text-align-last:justify}
+.lbl{font-family:var(--ui);font-size:.62em;font-weight:700;letter-spacing:.03em;color:var(--paper);background:var(--accent);
+  border-radius:4px;padding:.12em .45em;margin-inline-end:.45em;vertical-align:.18em}
+.dm{font-family:var(--ui);font-size:.6em;font-weight:700;color:var(--accent);border:1px solid currentColor;border-radius:999px;
+  padding:0 .55em;margin-inline-end:.5em;vertical-align:.22em;white-space:nowrap;font-variant-numeric:tabular-nums}
+.u.h{font-weight:700;color:var(--accent);text-align:center;margin:1.4em 0 1.6em;break-inside:avoid}
+/* a bite: one sixteenth of the day, framed in gold; everything around it steps back */
+:root{--gold:#d99a2b}
+@keyframes bpulse{0%,100%{border-color:var(--gold)}50%{border-color:color-mix(in srgb,var(--gold) 35%,transparent)}}
+@keyframes spk{0%{transform:scale(.2);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(1.2) rotate(90deg);opacity:0}}
+@keyframes pop{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.05);opacity:1}100%{transform:scale(1)}}
+.biteon .u:not(.bite){color:var(--muted)}
+.biteon .u:not(.bite) .em{color:var(--muted)}
+.u.bite{border-inline:2px solid var(--gold);padding-inline:.6em;margin-bottom:0;padding-bottom:var(--ugap);animation:bpulse 1.8s ease-in-out infinite}
+.u.bite.bfirst{border-top:2px solid var(--gold);border-radius:12px 12px 0 0;padding-top:.5em}
+.u.bite.blast{border-bottom:2px solid var(--gold);border-radius:0 0 12px 12px;padding-bottom:.5em;margin-bottom:var(--ugap)}
+.u.bite.bfirst.blast{border-radius:12px}
+.u.bite.bdone{animation:none;border-color:var(--ok)}
+.btag{display:flex;justify-content:space-between;align-items:center;font-family:var(--ui);font-size:.6em;font-weight:700;color:var(--gold);margin-bottom:.3em}
+.bx{cursor:pointer;color:var(--muted);padding:0 .3em}
+.recap{display:block;font-family:var(--ui);font-size:.68em;line-height:1.5;color:var(--ink);background:var(--soft);border-radius:8px;padding:.45em .7em;margin-bottom:.5em;white-space:pre-wrap}
+.recap b{color:var(--accent)}
+.bdone-btn{display:block;width:max-content;margin-top:.5em;font-family:var(--ui);font-size:.7em;font-weight:700;color:var(--paper);background:var(--ok);border-radius:8px;padding:.35em .9em;cursor:pointer}
+.spk{position:absolute;z-index:3;font-size:18px;pointer-events:none;animation:spk .95s ease-out forwards}
+.win{border-radius:12px;background:color-mix(in srgb,var(--ok) 14%,transparent);padding:14px;text-align:center;animation:pop .45s ease-out}
+.win .wt{font-size:1.15rem;font-weight:700;color:var(--ok)}
+.win .ws{font-size:.9rem;color:var(--ok);margin-top:2px}
+.win.big{padding:20px 14px}.win.big .wt{font-size:1.4rem}
+.status{color:var(--muted);text-align:center;padding:48px 0}
+.pager{position:fixed;z-index:6;display:flex;gap:8px;right:calc(12px + env(safe-area-inset-right,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+.pager button{width:52px;height:44px;padding:0;font-size:1.1rem;background:var(--bar);box-shadow:0 1px 3px rgb(0 0 0 / .12)}
+
+/* panels */
+.scrim{position:fixed;inset:0;z-index:20;background:rgb(0 0 0 / .28);display:flex;align-items:flex-start;justify-content:center;
+  padding:calc(52px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 12px max(12px,env(safe-area-inset-left,0px))}
+.panel{background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgb(0 0 0 / .2);
+  width:min(34rem,100%);max-height:100%;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:14px;font-size:.95rem;line-height:1.5;box-sizing:border-box}
+.panel.wide{width:min(46rem,100%)}
+.panel>*{flex-shrink:0}
+.panel h2{margin:0;font-family:var(--text);font-size:1.35rem}
+.panel h3{margin:0;font-size:.8rem;font-weight:700;color:var(--muted);letter-spacing:.03em}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.spacer{margin-inline-start:auto}
+.note{font-size:.85rem;color:var(--muted);margin:0}
+.primary{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--paper)!important}
+.ghost{border-color:transparent!important;color:var(--muted)!important}
+.block{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.okc{color:var(--ok);font-weight:700}.warnc{color:var(--warn);font-weight:700}
+label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85rem;color:var(--muted)}
+.panel input,.panel select{font:500 1rem var(--ui);color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:8px;height:36px;padding:0 10px}
+.panel input[type=number]{width:7rem}
+.src-text{font-family:var(--gfont);font-size:1.15rem;line-height:1.85;display:flex;flex-direction:column;gap:.35em}
+.src-text .v{color:var(--muted)}
+.src-text .v .n{font-family:var(--ui);font-size:.7em;font-weight:700;color:var(--accent);margin-inline-end:.35em}
+.src-text .v.on{color:var(--ink)}
+.src-text mark{background:color-mix(in srgb,var(--accent) 22%,transparent);color:inherit;border-radius:3px;padding:0 .1em}
+
+@media (max-width:520px){.mas{font-size:1rem}#dafSel{max-width:5rem}}
+/* Rashi woven in: same mechanism as Steinsaltz, in Rashi script when chosen */
+.rashion.rscript .st{font-family:var(--rfont,"MR2"),var(--sfont);font-size:.78em;color:var(--ink)}
+/* the word where the reader stopped */
+.w.bm{background:color-mix(in srgb,var(--warn) 22%,transparent);box-shadow:0 2px 0 var(--warn)}
+.w.bm::before{content:"";display:inline-block;width:.32em;height:.85em;margin-inline-end:.18em;vertical-align:-.05em;background:var(--warn);
+  clip-path:polygon(0 0,100% 0,100% 100%,50% 75%,0 100%)}
+#bmBtn svg{width:14px;height:16px;fill:currentColor;display:block;margin:auto}
+/* end of today's reading */
+.fin{display:none;
+  border-radius:6px;padding:.35em .7em;cursor:pointer;width:max-content;max-width:100%}
+.toast{position:fixed;z-index:25;left:50%;transform:translateX(-50%);bottom:calc(66px + env(safe-area-inset-bottom,0px));
+  background:var(--ink);color:var(--paper);border-radius:10px;padding:10px 14px;font-size:.92rem;line-height:1.45;
+  box-shadow:0 6px 20px rgb(0 0 0 / .25);display:flex;gap:12px;align-items:center;max-width:min(30rem,calc(100% - 24px));box-sizing:border-box}
+.toast button{color:var(--paper);border-color:color-mix(in srgb,var(--paper) 40%,transparent);height:28px;flex:none}
+/* map */
+.mapbody{display:flex;flex-direction:column;gap:2px}
+.mperek{font-family:var(--text);font-weight:700;font-size:1.1rem;color:var(--ink);margin:14px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--line);
+  position:sticky;top:-18px;background:var(--paper);z-index:1;padding-top:6px}
+.mrow{width:100%;height:auto;border:0;border-radius:6px;display:grid;grid-template-columns:4.2rem 1fr;gap:10px;align-items:baseline;
+  padding:5px 4px;text-align:start;font-weight:500;cursor:pointer}
+.mrow:hover{background:var(--soft);color:inherit}
+.mrow .r{color:var(--muted);font-size:.78rem;font-weight:600;font-variant-numeric:tabular-nums}
+.mrow.mi .t{font-family:var(--gfont);font-size:1.08rem;line-height:1.6;color:var(--ink)}
+.mrow.mi .t b{font-family:var(--ui);font-size:.72em;color:var(--paper);background:var(--accent);border-radius:4px;padding:.05em .4em;margin-inline-end:.4em;vertical-align:.12em}
+.mrow.ti .t{font-weight:700;color:var(--accent);font-size:1rem}
+.mbk{margin-inline-start:4.6rem;font-size:.9rem;color:var(--muted)}
+.mbk summary{cursor:pointer;font-size:.78rem;font-weight:700;color:var(--muted);list-style:none;padding:2px 0}
+.mbk summary::-webkit-details-marker{display:none}
+.mbk summary::before{content:"▸ ";}
+.mbk[open] summary::before{content:"▾ ";}
+.mbk .bx{white-space:pre-wrap;color:var(--ink);padding:2px 0 6px;cursor:pointer}
+.bg.bk{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:600}
+.seg3.seg4{grid-template-columns:repeat(4,1fr)}
+.nview.t-r{border-color:var(--accent);border-style:dashed}.t-r .ntag{color:var(--accent)}
+</style>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="where"><select id="trSel" class="mas" aria-label="מסכת"></select><span class="daf" id="dafLabel"></span></div>
+    <div class="ctrls">
+      <button id="todayBtn" title="מעבר לקריאה של היום">היום<span class="badge" id="badge" hidden></span></button>
+      <button id="mapBtn" aria-haspopup="dialog">מפה</button>
+      <button id="stzBtn" aria-pressed="false" title="ביאור הרב שטיינזלץ בתוך הטקסט">שטיינזלץ</button>
+      <button id="rashiBtn" aria-pressed="false" title="פירוש רש״י בתוך הטקסט">רש״י</button>
+      <button class="icon" id="bmBtn" aria-label="למילה שעצרתי בה" title="למילה שעצרתי בה"><svg viewBox="0 0 14 16" aria-hidden="true"><path d="M1 0h12v16l-6-4.5L1 16z"/></svg></button>
+      <select id="dafSel" aria-label="מעבר לדף"></select>
+      <button class="icon" id="fsBtn" aria-label="מסך מלא" title="מסך מלא" hidden>⛶</button>
+      <button class="icon" id="setBtn" aria-label="הגדרות" title="הגדרות">⚙</button>
+    </div>
+  </div>
+</header>
+
+<div id="flow" tabindex="-1"><div class="status">טוען את המסכת…</div></div>
+<nav class="pager" aria-label="ניווט בין מסכים">
+  <button id="upBtn" aria-label="המסך הקודם">▲</button>
+  <button id="downBtn" aria-label="המסך הבא">▼</button>
+</nav>
+<div class="scrim" id="scrim" hidden><div class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle"></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function(){
+  "use strict";
+  const OPEN="⁣", CLOSE="⁤", SO="", SC="", QO="", QC="";
+  const NIQ=/[֑-ׇ⁣⁤-]/g;
+  const $=id=>document.getElementById(id);
+  const flow=$("flow"), panel=$("panel"), scrim=$("scrim");
+  const reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const LS=k=>"sh2-"+k;
+  let TRACTS=[
+    {key:"shabbat",he:"שבת",en:"Shabbat",base:"",db:"talmud",ls:""},
+    {key:"shevuot",he:"שבועות",en:"Shevuot",base:"shevuot/",db:"talmud-shevuot",ls:"shevuot-"}];
+  let TR=TRACTS[0];
+  let niqqud=true; const NQ=/[\u0591-\u05BD\u05BF-\u05C2\u05C4-\u05C7]/g; const nq=s=>niqqud?s:s.replace(NQ,"");
+  const lsGet=(k,d)=>{ try{ const v=localStorage.getItem(LS(k)); return v==null?d:JSON.parse(v); }catch(e){ return d; } };
+  const PREFK=["px","lh","font","stz","rashi","rscript","rw","plantr","bm","askSum","justify","refs","niqqud","tr"];
+  const lsSet=(k,v)=>{ try{ localStorage.setItem(LS(k),JSON.stringify(v)); }catch(e){} if(PREFK.includes(k)||/amud$/.test(k)) prefsDirty(); };
+  const lsGetT=(k,d)=>lsGet(TR.ls+k,d), lsSetT=(k,v)=>lsSet(TR.ls+k,v);
+
+  let REFS=null;
+  let A=null, Z=null, RZ=null, C=null, SG=null, stzOn=false, rashiOn=false, first=0, size=20, dense=false;
+  let N=1, H=0, colW=0, gap=0, width=0;
+  let head=null, tail=null, pi=0, current=-1, animating=0;
+  const toks=new Map();
+
+  /* ---------- small helpers ---------- */
+  function h(tag,attrs,...kids){
+    const el=document.createElement(tag);
+    for(const [k,v] of Object.entries(attrs||{})){
+      if(k.startsWith("on")) el.addEventListener(k.slice(2),v);
+      else if(k==="html") el.innerHTML=v;
+      else if(v!=null&&v!==false) el.setAttribute(k,v===true?"":v);
+    }
+    for(const c of kids.flat()) if(c!=null&&c!==false) el.append(c.nodeType?c:document.createTextNode(c));
+    return el;
+  }
+  function gem(n){
+    const T=[[400,"ת"],[300,"ש"],[200,"ר"],[100,"ק"],[90,"צ"],[80,"פ"],[70,"ע"],[60,"ס"],[50,"נ"],[40,"מ"],[30,"ל"],[20,"כ"],[10,"י"],[9,"ט"],[8,"ח"],[7,"ז"],[6,"ו"],[5,"ה"],[4,"ד"],[3,"ג"],[2,"ב"],[1,"א"]];
+    let s=""; for(const [v,c] of T){ while(n>=v){ s+=c; n-=v; } }
+    s=s.replace(/יה$/,"טו").replace(/יו$/,"טז");
+    return s.length===1 ? s+"׳" : s.slice(0,-1)+"״"+s.slice(-1);
+  }
+  const daf=i=>Math.floor(i/2)+1, sideHe=i=>i%2?"ע״ב":"ע״א";
+  const amudName=a=>gem(daf(a))+" "+sideHe(a);
+  const short=i=>gem(daf(i))+(i%2?":":".");
+  const hashOf=i=>daf(i)+(i%2?"b":"a");
+  const plain=s=>s.replace(NIQ,"");
+  const fmtN=n=>n.toLocaleString("he-IL");
+  function dayNum(d){ d=d||new Date(); return Math.round(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5); }
+  const dayDate=n=>{ const d=new Date(n*864e5); return new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()); };
+  const isoDay=n=>{ const d=dayDate(n); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+  const parseIso=s=>{ const [y,m,d]=s.split("-").map(Number); return dayNum(new Date(y,m-1,d)); };
+
+  /* ---------- text model ---------- */
+  let F=[]; const FI=new Map();
+  const flatOf=(a,u)=>FI.get(a+":"+u);
+  let SU=[];            // flat unit -> sugya index
+  let CH=[], CHF=[], CHN=[];   // perek starts {a,u}, their flat index, perek names
+  function buildModel(){
+    F=[]; FI.clear();
+    for(let a=0;a<A.length;a++){ if(!A[a]) continue;
+      for(let u=0;u<A[a].length;u++){ const [k,t]=A[a][u]; FI.set(a+":"+u,F.length);
+        F.push({a,u,w:k==="h"?0:plain(t).split(" ").filter(Boolean).length}); } }
+    SU=new Array(F.length);
+    SG.forEach((g,j)=>{ for(let i=g.s;i<g.e;i++) SU[i]=j; });
+    CH=[{a:first,u:0}];
+    for(let i=0;i<F.length;i++){ const {a,u}=F[i]; if(A[a][u][0]==="h"&&i+1<F.length) CH.push({a:F[i+1].a,u:F[i+1].u}); }
+    CHF=CH.map(c=>flatOf(c.a,c.u));
+    CHN=CH.map((c,ci)=>{ const end=ci+1<CHF.length?CHF[ci+1]:F.length;
+      for(let i=end-1;i>=Math.max(0,end-3);i--){ const {a,u}=F[i]; if(A[a][u][0]==="h") return A[a][u][1].replace(/^הדרן עלי?ך\s*/,"").replace(/[,\s]*וסליקא.*$/,"").replace(/[.\s]+$/,"").trim(); }
+      return "פרק "+gem(ci+1); });
+    SG.forEach(g=>{ g.p=perekOfFlat(g.s); g.a=F[g.s].a; g.a2=F[g.e-1].a; });
+  }
+  function perekOfFlat(i){ let lo=0,hi=CHF.length-1; while(lo<hi){ const m=(lo+hi+1)>>1; if(CHF[m]<=i) lo=m; else hi=m-1; } return lo; }
+
+  /* ---------- reader: rendering units ---------- */
+  function text(a,u){ if(stzOn&&Z&&Z[a]&&typeof Z[a][u]==="string") return Z[a][u]; if(rashiOn&&RZ&&RZ[a]&&typeof RZ[a][u]==="string") return RZ[a][u]; return A[a][u][1]; }
+  function tokens(a,u){ const k=a+":"+u; let t=toks.get(k); if(!t){ t=text(a,u).split(" "); toks.set(k,t); } return t; }
+  const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const PAIR={[OPEN]:CLOSE,[SO]:SC,[QO]:QC};
+  function stackOf(str){ const st=[]; for(const ch of str){ if(PAIR[ch]) st.push(ch); else if(ch===CLOSE||ch===SC||ch===QC) st.pop(); } return st; }
+  const escTxt=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  function slice(words,w0,w1,ids,au){
+    const pre=words.slice(0,w0).join(" "), stack=stackOf(pre);
+    let qn=0; for(const ch of pre) if(ch===QO) qn++;
+    let g=0, d=0;   // Gemara word index and Steinsaltz depth at w0
+    for(const tok of words.slice(0,w0)){ let has=false; for(const ch of tok){ if(ch===SO) d++; else if(ch===SC) d--; else if(d===0&&LET.test(ch)) has=true; } if(has) g++; }
+    const body=words.slice(w0,w1).join(" ");
+    const tl=stackOf(stack.join("")+body).reverse().map(o=>PAIR[o]).join("");
+    let out="";
+    const qs=[]; let qk=qn-stack.filter(o=>o===QO).length;
+    for(const o of stack){ if(o===QO){ qs.push(ids?ids[qk]:null); qk++; } out+= o===QO ? '<span class="q">' : o===OPEN ? '<span class="em">' : '<span class="st">'; }
+    const NK=au?notesAt(au.a,au.u):null;
+    let run="", tokHas=false, bgDone=false;
+    const flushRun=()=>{
+      if(!run) return;
+      if(au&&d===0&&LET.test(run)){
+        const ns=NK&&NK.get(g); let cls="w";
+        if(ns){
+          if(!bgDone){ const bgs=ns.filter(n=>n.t==="b"), bks=ns.filter(n=>n.t==="r");
+            if(bgs.length) out+='<span class="bg" data-g="'+g+'">'+escTxt(bgs.map(n=>n.x).join(" · "))+'</span> ';
+            if(bks.length) out+='<span class="bg bk" data-g="'+g+'">'+escTxt(bks.map(n=>n.x).join(" · "))+'</span> '; }
+          if(ns.some(n=>n.t==="q")) cls+=" nq"; else if(ns.some(n=>n.t==="n")) cls+=" nn";
+        }
+        if(BM&&BM.a===au.a&&BM.u===au.u&&BM.g===g) cls+=" bm";
+        bgDone=true; tokHas=true;
+        out+='<span class="'+cls+'" data-g="'+g+'">'+escTxt(nq(run))+'</span>';
+      } else out+=escTxt(nq(run));
+      run="";
+    };
+    for(const ch of body+tl){
+      if(ch===" "){ flushRun(); if(tokHas) g++; tokHas=false; bgDone=false; out+=" "; continue; }
+      if(ch===OPEN||ch===SO||ch===QO||ch===CLOSE||ch===SC||ch===QC){
+        flushRun();
+        if(ch===OPEN) out+='<span class="em">';
+        else if(ch===SO){ d++; out+='<span class="st">'; }
+        else if(ch===QO){ qs.push(ids?ids[qn]:null); out+='<span class="q">'; qn++; }
+        else if(ch===QC){ out+="</span>"; const id=qs.pop(); if(id!=null&&REFS&&REFS[id]&&au) out+='<span class="ref" data-q="'+id+'" role="button">'+REFS[id]+'</span>'; }
+        else { if(ch===SC) d--; out+="</span>"; }
+        continue;
+      }
+      run+=ch;
+    }
+    flushRun();
+    return out;
+  }
+  let portion=null;   // {from,to} flat, today's reading
+  function unitEl(a,u,w0,w1){
+    const kind=A[a][u][0], words=tokens(a,u), el=document.createElement("p");
+    const fi=flatOf(a,u);
+    el.className="u"; el.dataset.a=a; el.dataset.f=fi; el.dataset.w=w0;
+    if(kind==="h"){ el.classList.add("h"); el.textContent=text(a,u); return el; }
+    let start=w0, pre="";
+    if(w0===0){
+      if(kind!=="p") el.classList.add(kind);
+      const j=SU[fi], g=SG[j];
+      if(g&&g.s===fi) el.classList.add("ss");
+      if(u===0) pre+='<span class="dm">'+amudName(a)+"</span>";
+      const fw=plain(words[0]||"");
+      if(kind==="m"&&fw.startsWith("מתני")){ pre+='<span class="lbl">מתני׳</span>'; start=1; }
+      if(kind==="g"&&fw.startsWith("גמ")){ pre+='<span class="lbl">גמ׳</span>'; start=1; }
+    } else el.classList.add("cont");
+    if(w1<words.length) el.classList.add("brk");
+    let post="";
+    if(BITE&&fi>=BITE.from&&fi<BITE.to){
+      el.classList.add("bite");
+      if(fi===BITE.from&&w0===0){ el.classList.add("bfirst");
+        const s=lastSummary();
+        pre='<span class="btag">✦ ביס אחד · '+fmtN(BITE.w)+' מילים<span class="bx" role="button" aria-label="סגירת הביס">✕</span></span>'
+          +(s?'<span class="recap"><b>קודם למדת:</b> '+esc(s.x)+'</span>':"")+pre; }
+      if(fi===BITE.to-1&&w1>=words.length){ el.classList.add("blast"); post='<span class="bdone-btn" role="button">✓ סיימתי</span>'; }
+    }
+    el.innerHTML=pre+slice(words,start,w1,A[a][u][2],{a,u})+post;
+    return el;
+  }
+  function next(c){ let a=c.a, u=c.u+1; while(a<A.length && (!A[a] || u>=A[a].length)){ a++; u=0; } return a<A.length ? {a,u,w:0} : null; }
+
+  /* ---------- reader: screens ---------- */
+  function measure(){
+    const cs=getComputedStyle(flow);
+    width=flow.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+    H=flow.clientHeight;
+    colW=size*15.5; gap=Math.max(dense?20:28,size*(dense?1.4:1.7));
+    N=width<640 ? 1 : Math.max(1,Math.floor((width+gap)/(colW+gap)));
+  }
+  function newSheet(){ const s=document.createElement("section"); s.className="sheet";
+    s.style.height=H+"px"; s.style.width=width+"px"; s.style.columnCount=N; s.style.columnGap=gap+"px"; return s; }
+  function fits(sheet,el){
+    const r=sheet.getBoundingClientRect(), rs=el.getClientRects(), bottom=r.bottom-64;
+    if(!rs.length) return true;
+    for(const q of rs){ if(q.left<r.left-1||q.right>r.right+1||q.bottom>bottom+1) return false; }
+    return true;
+  }
+  function fill(sheet,c,stop){
+    let cur=c;
+    while(cur && (stop==null || cmp(cur,stop)<0)){
+      const words=tokens(cur.a,cur.u), lim=(stop&&cur.a===stop.a&&cur.u===stop.u)?stop.w:words.length;
+      const after=()=>lim<words.length?{a:cur.a,u:cur.u,w:lim}:next(cur);
+      const el=unitEl(cur.a,cur.u,cur.w,lim);
+      sheet.appendChild(el);
+      if(fits(sheet,el)){ cur=after(); continue; }
+      sheet.removeChild(el);
+      let lo=cur.w, hi=lim-1;
+      while(lo<hi){ const mid=Math.ceil((lo+hi)/2); const t=unitEl(cur.a,cur.u,cur.w,mid); sheet.appendChild(t);
+        const ok=fits(sheet,t); sheet.removeChild(t); if(ok) lo=mid; else hi=mid-1; }
+      if(lo>cur.w){ sheet.appendChild(unitEl(cur.a,cur.u,cur.w,lo)); return {a:cur.a,u:cur.u,w:lo}; }
+      if(!sheet.childNodes.length){ sheet.appendChild(el); return after(); }
+      return cur;
+    }
+    return cur;
+  }
+  const sheets=()=>flow.querySelectorAll(".sheet:not(.probe)");
+  const cmp=(x,y)=> x.a!==y.a ? x.a-y.a : x.u!==y.u ? x.u-y.u : (x.w||0)-(y.w||0);
+  function chapterOf(t){ let c=CH[0]; for(const x of CH){ if(cmp(x,t)<=0) c=x; else break; } return c; }
+  function append(){ if(!tail) return false; const s=newSheet(); s._start=tail; const pr=flow.querySelector(".probe"); flow.insertBefore(s,pr); tail=fill(s,tail);
+    if(!s.childNodes.length){ s.remove(); tail=null; return false; } return true; }
+
+  /* Screens before the reader's place are filled backward from it, so every screen is full
+     wherever the reader starts; only the very first screen of the tractate may be short. */
+  const posFlat=p=>flatOf(p.a,p.u);
+  const unitPos=k=>({a:F[k].a,u:F[k].u,w:0});
+  let probe=null;
+  function fitsFrom(start,stop){
+    if(!probe){ probe=newSheet(); probe.classList.add("probe"); probe.style.position="absolute"; probe.style.visibility="hidden"; probe.style.top="0"; flow.appendChild(probe); }
+    probe.innerHTML=""; const r=fill(probe,start,stop); return !r||cmp(r,stop)>=0;
+  }
+  function findStart(stop){
+    const sf=posFlat(stop);
+    if(stop.w>0 && !fitsFrom(unitPos(sf),stop)) return wordStart(sf,stop.w,stop,stop);
+    const per=Math.max(4,Math.round((sheets()[0]?sheets()[0].querySelectorAll(".u").length:20)*0.8));
+    let good=sf, bad=-1, step=per;
+    if(sf===0) return unitPos(0);
+    while(true){ const cand=Math.max(0,good-step);
+      if(fitsFrom(unitPos(cand),stop)){ good=cand; if(cand===0) return unitPos(0); step*=2; } else { bad=cand; break; } }
+    let lo=bad, hi=good; while(hi-lo>1){ const m=(lo+hi)>>1; if(fitsFrom(unitPos(m),stop)) hi=m; else lo=m; }
+    // unit lo does not fit whole: start inside it at the earliest word that still fits
+    const n=posFlat(stop)===lo?stop.w:tokens(F[lo].a,F[lo].u).length;
+    return wordStart(lo,n,stop,unitPos(hi));
+  }
+  function wordStart(k,limit,stop,whole){
+    let lo=0, hi=limit; const p=F[k];
+    while(hi-lo>1){ const m=(lo+hi)>>1; if(fitsFrom({a:p.a,u:p.u,w:m},stop)) hi=m; else lo=m; }
+    if(hi>=limit) return cmp(whole,stop)<0?whole:{a:p.a,u:p.u,w:Math.max(0,limit-1)};
+    return {a:p.a,u:p.u,w:hi};
+  }
+  function prepend(){
+    if(!head||(posFlat(head)===0&&!(head.w>0))) return 0;
+    const s0=findStart(head);
+    if(probe){ probe.remove(); probe=null; }
+    if(posFlat(s0)===0&&!(s0.w>0)) return rebase();   // reached the tractate's start: lay out from it, so its first screen is full too
+    const s=newSheet(); s._start=s0; flow.insertBefore(s,sheets()[0]||null); fill(s,s0,head); head=s0; return 1;
+  }
+  function rebase(){
+    const cur=sheets()[pi], keep=(cur&&cur._start)||head;
+    flow.innerHTML=""; probe=null;
+    head=unitPos(0); tail=unitPos(0);
+    let idx=0;
+    while(tail){ const s0=tail; if(!append()) break; idx=sheets().length-1; if(cmp(s0,keep)<=0&&(!tail||cmp(tail,keep)>0)) break; }
+    while(tail&&sheets().length-idx<3) append();
+    pi=idx; return "rebased";
+  }
+  function place(smooth){ const top=pi*H;
+    if(smooth && !reduce){ flow.scrollTo({top,behavior:"smooth"}); animating=performance.now()+450; } else flow.scrollTop=top; }
+  function buffer(){ while(tail && sheets().length-pi<3) append();
+    if(pi<1){ const k=prepend(); if(k==="rebased"){ place(false); update(); } else if(k){ pi+=k; place(false); } } }
+  function layout(startA,startU){ if(!A) return; layoutAt({a:startA,u:startU||0,w:0}); }
+  // Keep the reader's place exactly: the first Gemara word on the screen stays first on the screen,
+  // whatever changes (Steinsaltz on/off, font, size, window). Positions are counted in Gemara words only.
+  const LET=/[\u05D0-\u05EA]/;
+  function gemaraCounts(a,u){ // for each token: does it carry a Gemara word (not Steinsaltz)?
+    const t=tokens(a,u), out=[]; let d=0;
+    for(const tok of t){ let has=false; for(const ch of tok){ if(ch===SO) d++; else if(ch===SC) d--; else if(d===0&&LET.test(ch)) has=true; } out.push(has); }
+    return out;
+  }
+  function tokToG(a,u,w){ const c=gemaraCounts(a,u); let g=0; for(let i=0;i<w&&i<c.length;i++) if(c[i]) g++; return g; }
+  function gToTok(a,u,g){ const c=gemaraCounts(a,u); let n=0; for(let i=0;i<c.length;i++){ if(c[i]){ if(n===g) return i; n++; } } return c.length; }
+  function anchorNow(){ const s=sheets()[pi], el=s&&s.querySelector("[data-f]"); if(!el) return null;
+    const f=F[+el.dataset.f]; return {a:f.a,u:f.u,g:tokToG(f.a,f.u,+(el.dataset.w||0))}; }
+  let bufT=null;
+  function layoutAt(t){
+    flow.innerHTML=""; probe=null; toks.clear(); measure();
+    head={a:t.a,u:t.u,w:t.w}; tail={a:t.a,u:t.u,w:t.w}; pi=0;
+    for(let i=0;i<2&&tail;i++) append();
+    place(false); current=-1; update();
+    clearTimeout(bufT); bufT=setTimeout(()=>{ if(A) buffer(); },250);
+  }
+  function keepPlace(change){
+    const an=anchorNow();
+    return Promise.resolve(change&&change()).then(()=>{ toks.clear();
+      if(!an){ layout(current); return; }
+      layoutAt({a:an.a,u:an.u,w:an.g===0?0:gToTok(an.a,an.u,an.g)}); });
+  }
+  const relayout=()=>keepPlace();
+  function go(d){
+    if(!A) return; let target=pi+d;
+    if(target<0){ const k=prepend(); if(!k) return; if(k==="rebased"){ place(false); update(); target=pi+d; if(target<0) return; } else { pi+=k; place(false); target=pi+d; } }
+    if(target>=sheets().length){ if(!append()) return; }
+    pi=target; place(true); update();
+    setTimeout(()=>{ if(performance.now()>=animating-20) buffer(); },470);
+  }
+  function update(){ const s=sheets()[pi]; if(!s) return; const el=s.querySelector("[data-a]"); if(el) showAmud(+el.dataset.a); }
+  function showAmud(a){
+    if(a===current) return; current=a;
+    $("dafLabel").textContent="דף "+amudName(a);
+    $("dafSel").value=String(a);
+    try{ history.replaceState(null,"","#"+(TR.key==="shabbat"?"":TR.key+"-")+hashOf(a)); }catch(e){}
+    lsSetT("amud",a);
+  }
+  const readAt=i=>{ const f=F[Math.min(i,F.length-1)]; layout(f.a,f.u); };
+
+  // gestures
+  let wAcc=0, wLock=0;
+  flow.addEventListener("wheel",e=>{ e.preventDefault(); const now=performance.now(); if(now<wLock){ wAcc=0; return; }
+    wAcc+=e.deltaY; if(Math.abs(wAcc)>30){ go(wAcc>0?1:-1); wAcc=0; wLock=now+500; } },{passive:false});
+  let tx=0, ty=0, tOn=false;
+  flow.addEventListener("touchstart",e=>{ if(e.touches.length!==1){ tOn=false; return; } tOn=true; tx=e.touches[0].clientX; ty=e.touches[0].clientY; },{passive:true});
+  flow.addEventListener("touchmove",e=>{ e.preventDefault(); },{passive:false});
+  flow.addEventListener("touchend",e=>{ if(!tOn) return; tOn=false; const t=e.changedTouches[0], dx=t.clientX-tx, dy=t.clientY-ty;
+    if(Math.abs(dy)>40 && Math.abs(dy)>Math.abs(dx)) go(dy<0?1:-1);
+    else if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)) go(dx>0?1:-1); },{passive:true});
+  // a tap on a word opens its notes (paging is by swipe, wheel, keys and the corner buttons)
+  const wordOf=t=>{ const w=t.closest&&t.closest(".w,.bg"), p=w&&w.closest(".u[data-f]"); if(!w||!p) return null; const f=F[+p.dataset.f]; return {a:f.a,u:f.u,g:+w.dataset.g}; };
+  flow.addEventListener("click",e=>{
+    if(e.target.closest&&e.target.closest(".bdone-btn")){ finishBite(); return; }
+    if(e.target.closest&&e.target.closest(".bx")){ endBite(); keepPlace(); return; }
+    const r=e.target.closest&&e.target.closest(".ref");
+    if(r){ openQuote(+r.dataset.q); return; }
+    const w=wordOf(e.target); if(w) openWord(w.a,w.u,w.g);
+  });
+  document.addEventListener("keydown",e=>{
+    if(!scrim.hidden){ if(e.key==="Escape") closePanel(); return; }
+    if(e.target.tagName==="SELECT"||e.target.tagName==="INPUT") return;
+    const k=e.key;
+    if(k==="ArrowDown"||k==="PageDown"||k===" "||k==="ArrowLeft"){ e.preventDefault(); go(1); }
+    if(k==="ArrowUp"||k==="PageUp"||k==="ArrowRight"){ e.preventDefault(); go(-1); }
+  });
+  $("upBtn").onclick=()=>go(-1);
+  $("downBtn").onclick=()=>go(1);
+  $("dafSel").onchange=e=>{ layout(+e.target.value); e.target.blur(); };
+  let rz; window.addEventListener("resize",()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(!A) return; const w=width,hh=H; measure(); if(w!==width||hh!==H) relayout(); },200); });
+  function parseHashFull(){ const m=/^#(?:([a-z-]+?)-)?(\d+)([ab])$/.exec(location.hash||""); if(!m) return null;
+    return {tr:m[1]||"shabbat",a:(parseInt(m[2],10)-1)*2+(m[3]==="b"?1:0)}; }
+  function parseHash(){ const x=parseHashFull(); return x&&x.tr===TR.key?x.a:null; }
+  window.addEventListener("hashchange",()=>{ const x=parseHash(); if(x!=null&&A&&A[x]&&x!==current) layout(x); });
+
+  /* ---------- panels ---------- */
+  function openPanel(wide){ panel.className="panel"+(wide?" wide":""); scrim.hidden=false; }
+  function closePanel(){ scrim.hidden=true; panel.innerHTML=""; }
+  scrim.addEventListener("click",e=>{ if(e.target===scrim) closePanel(); });
+
+  /* ---------- reading aids: Steinsaltz, quotations ---------- */
+  function setStz(on){ if(on&&!$("stzBtn")) return; stzOn=on; $("stzBtn").setAttribute("aria-pressed",String(on)); flow.classList.toggle("stzon",on); lsSet("stz",on); }
+  function loadStz(){ if(Z) return Promise.resolve(); $("stzBtn").textContent="טוען…";
+    return fetch(TR.base+"stz.json").then(r=>{ if(!r.ok) throw 0; return r.json(); }).then(d=>{ Z=d.amudim; $("stzBtn").textContent="שטיינזלץ"; })
+      .catch(()=>{ $("stzBtn").textContent="שטיינזלץ"; setStz(false); }); }
+  $("stzBtn").onclick=()=>keepPlace(()=>{ const on=!stzOn; if(on&&rashiOn) setRashi(false); setStz(on); return on?loadStz():null; });
+  function setRashi(on){ rashiOn=on; $("rashiBtn").setAttribute("aria-pressed",String(on)); flow.classList.toggle("rashion",on); lsSet("rashi",on); }
+  function loadRashi(){ if(RZ) return Promise.resolve(); $("rashiBtn").textContent="טוען…";
+    return fetch(TR.base+"rashi.json").then(r=>{ if(!r.ok) throw 0; return r.json(); }).then(d=>{ RZ=d.amudim; $("rashiBtn").textContent="רש״י"; })
+      .catch(()=>{ $("rashiBtn").textContent="רש״י"; setRashi(false); toast("אין פירוש רש״י למסכת "+TR.he+"."); }); }
+  $("rashiBtn").onclick=()=>keepPlace(()=>{ const on=!rashiOn; if(on&&stzOn) setStz(false); setRashi(on); return on?Promise.all([loadRashi(),rscript?rashiFace():null]):null; });
+  let rscript=lsGet("rscript",true)!==false;
+  function setRscript(on,relay){ rscript=on; flow.classList.toggle("rscript",on); lsSet("rscript",on); if(on) rashiFace().then(()=>{ if(relay) relayout(); }); else if(relay) relayout(); }
+  // Rashi script: Mekorot (OFL), in three weights lighter than its regular one (derived from its weight axis),
+  // embedded here and registered on first use
+  const RW=["דק","דק יותר","הכי דק"]; let rw=Math.max(1,Math.min(3,+lsGet("rw",2)||2));
+  const rfP={};
+  function rashiFace(){ const i=rw; flow.style.setProperty("--rfont",'"MR'+i+'"'); if(rfP[i]) return rfP[i];
+    rfP[i]=fetch("fonts/mekorot-rashi-"+i+".ttf").then(r=>{ if(!r.ok) throw 0; return r.arrayBuffer(); })
+      .then(buf=>new FontFace("MR"+i,buf).load()).then(ff=>{ document.fonts.add(ff); }).catch(()=>{ delete rfP[i]; });
+    return rfP[i]; }
+  function setRw(i,relay){ rw=i; lsSet("rw",i); if(rscript) rashiFace().then(()=>{ if(relay) relayout(); }); }
+  // short messages over the reader
+  let toastT=null;
+  function toast(msg,btn,fn,ms){ const t=$("toast"); t.innerHTML=""; t.append(h("span",{},msg)); if(btn) t.append(h("button",{onclick:()=>{ t.hidden=true; fn(); }},btn));
+    t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>{ t.hidden=true; },ms||4500); }
+  function openQuote(id,word){ quoteWord=word||null;
+    panel.innerHTML=""; panel.append(h("p",{class:"note"},"טוען את המקור…")); openPanel();
+    (C?Promise.resolve():fetch(TR.base+"ctx.json").then(r=>{ if(!r.ok) throw 0; return r.json(); }).then(d=>{ C=d; }))
+      .then(()=>renderQuote(id,false)).catch(()=>{ panel.innerHTML=""; panel.append(h("p",{class:"note"},"לא הצלחתי לטעון את המקור."),h("button",{onclick:closePanel},"סגירה")); });
+  }
+  let quoteWord=null;
+  function renderQuote(id,all){
+    const [key,li,hs,he]=C.q[id], src=C.s[key], parts=key.split(":"), kind=parts[0], ch=+parts[2];
+    panel.innerHTML="";
+    panel.append(h("h2",{id:"panelTitle"},src.t+(kind==="T"?", "+gem(li+1):", משנה "+gem(li+1))));
+    const lo=all?0:(kind==="T"?Math.max(0,li-3):li), hi=all?src.l.length-1:(kind==="T"?Math.min(src.l.length-1,li+3):li);
+    const box=h("div",{class:"src-text"});
+    for(let i=lo;i<=hi;i++){ const line=src.l[i], div=h("div",{class:"v"+(i===li?" on":"")},h("span",{class:"n"},gem(i+1)));
+      if(i===li) div.append(line.slice(0,hs),h("mark",{},line.slice(hs,he)),line.slice(he)); else div.append(line); box.append(div); }
+    panel.append(box);
+    const url=kind==="T"?"https://www.sefaria.org/"+encodeURIComponent(parts[1].replace(/ /g,"_"))+"."+ch+"."+(li+1):"https://www.sefaria.org/Mishnah_"+parts[1]+"."+ch+"."+(li+1);
+    panel.append(h("div",{class:"row"},
+      h("button",{onclick:()=>{ renderQuote(id,!all); const m=panel.querySelector("mark"); if(m&&!all) m.scrollIntoView({block:"center"}); }},all?"רק הסביבה הקרובה":"כל הפרק"),
+      h("a",{href:url,target:"_blank",rel:"noopener",class:"note"},"בספריא ↗"),
+      quoteWord?h("button",{onclick:()=>{ const w=quoteWord; openWord(w.a,w.u,w.g); }},"הערה על המילה"):null,
+      h("button",{class:"ghost spacer",onclick:closePanel},"סגירה")));
+  }
+
+  /* ---------- the learner's own notes on words ---------- */
+  // NOTES: "a:u:g" -> [{t:"q"|"n"|"b", x:text, d:day}]; g = index of the Gemara word in the unit (Steinsaltz excluded)
+  let NOTES={}, NOTE_M={}, NB=new Map();
+  function indexNotes(){ NB=new Map(); for(const [k,arr] of Object.entries(NOTES)){ if(!arr||!arr.length) continue;
+    const [a,u,g]=k.split(":").map(Number), uk=a+":"+u; if(!NB.has(uk)) NB.set(uk,new Map()); NB.get(uk).set(g,arr); } }
+  const notesAt=(a,u)=>NB.get(a+":"+u)||null;
+  const notesFor=(a,u,g)=>NOTES[a+":"+u+":"+g]||[];
+  function loadNotes(){ NOTES=lsGetT("notes",{})||{}; NOTE_M=lsGetT("notes-m",{})||{}; indexNotes(); }
+  function amudNotes(a){ const items={}; for(const [k,arr] of Object.entries(NOTES)){ const p=k.split(":"); if(+p[0]===a&&arr&&arr.length) items[p[1]+":"+p[2]]=arr; } return items; }
+  function storeNotes(a){
+    NOTE_M[a]=Date.now(); lsSetT("notes",NOTES); lsSetT("notes-m",NOTE_M); indexNotes();
+    if(dbBase) dbBase.collection("notes").doc("a"+a).set({items:amudNotes(a),m:NOTE_M[a]}).catch(()=>{});
+  }
+  async function syncNotes(myTR){
+    try{
+      const q=await dbBase.collection("notes").get(); if(myTR!==TR) return;
+      const seen=new Set();
+      for(const d of q.docs){ const a=+String(d.id).slice(1), x=d.data()||{}; seen.add(a);
+        if(!NOTE_M[a]||(x.m||0)>=NOTE_M[a]){
+          for(const k of Object.keys(NOTES)) if(+k.split(":")[0]===a) delete NOTES[k];
+          for(const [k,arr] of Object.entries(x.items||{})) NOTES[a+":"+k]=arr;
+          NOTE_M[a]=x.m||0;
+        } else dbBase.collection("notes").doc("a"+a).set({items:amudNotes(a),m:NOTE_M[a]}).catch(()=>{});
+      }
+      for(const a of Object.keys(NOTE_M).map(Number)) if(!seen.has(a)) dbBase.collection("notes").doc("a"+a).set({items:amudNotes(a),m:NOTE_M[a]}).catch(()=>{});
+      lsSetT("notes",NOTES); lsSetT("notes-m",NOTE_M); indexNotes();
+    }catch(e){}
+  }
+  const TYPES={q:"שאלה",n:"הערה",b:"כותרת",r:"רקע"};
+  const shown=t=>t==="b"||t==="r";   // titles and background are shown in the text, before the word
+  function detect(v){
+    let s=v.trim(), m;
+    if((m=/^כותרת(?=[\s:,\-–.]|$)[\s:,\-–.]*/.exec(s))) return {t:"b",x:s.slice(m[0].length).trim()};
+    if((m=/^רקע(?=[\s:,\-–.]|$)[\s:,\-–.]*/.exec(s))) return {t:"r",x:s.slice(m[0].length).trim()};
+    if((m=/^שאלה(?=[\s:,\-–.]|$)[\s:,\-–.]*/.exec(s))) return {t:"q",x:s.slice(m[0].length).trim()};
+    if((m=/^(הערה|תובנה)(?=[\s:,\-–.]|$)[\s:,\-–.]*/.exec(s))) return {t:"n",x:s.slice(m[0].length).trim()};
+    if(/[?？]\s*$/.test(s)) return {t:"q",x:s};
+    return {t:"n",x:s};
+  }
+  function gemaraTokens(a,u){ return A[a][u][1].split(" ").map(t=>nq(t)).map(t=>t.replace(/[⁣⁤-]/g,"")).filter(t=>LET.test(t)); }
+  function contextEl(a,u,g){
+    const t=gemaraTokens(a,u), lo=Math.max(0,g-7), hi=Math.min(t.length,g+8);
+    return h("div",{class:"nctx"},lo>0?"… ":"",t.slice(lo,g).join(" ")+" ",h("b",{},t[g]||"")," "+t.slice(g+1,hi).join(" "),hi<t.length?" …":"",
+      h("span",{class:"nloc"},"  · "+amudName(a)));
+  }
+  /* ---------- the word where I stopped (one mark for the whole Shas) ---------- */
+  let BM=null;
+  const isBM=(a,u,g)=>BM&&BM.a===a&&BM.u===u&&BM.g===g;
+  // one mark for the whole Shas: {tr,a,u,g}. (An older mark without tr was Shabbat's; per-tractate marks are taken over once.)
+  function getBMG(){ let b=lsGet("bm",null);
+    if(b&&typeof b==="object"&&!b.tr) b={...b,tr:"shabbat"};
+    if(b==null) for(const t of TRACTS){ if(!t.ls) continue; const x=lsGet(t.ls+"bm",null); if(x&&typeof x==="object"){ b={...x,tr:t.key}; break; } }
+    return b&&typeof b==="object"?b:null; }
+  const curBM=()=>{ const b=getBMG(); return b&&b.tr===TR.key?b:null; };
+  function setBM(a,u,g){ lsSet("bm",a==null?"":{tr:TR.key,a,u,g}); BM=curBM(); }
+  function bmButton(a,u,g){
+    return isBM(a,u,g)?h("button",{onclick:()=>{ setBM(null); closePanel(); keepPlace(); }},"הסרת הסימון")
+      :h("button",{onclick:()=>{ setBM(a,u,g); closePanel(); keepPlace(); toast("סומן: עצרת כאן. הכפתור עם הסימנייה בסרגל יחזיר אותך לכאן."); }},"עצרתי כאן");
+  }
+  async function goBM(){
+    const b=getBMG();
+    if(!b){ toast("אין עדיין סימון. לוחצים על מילה ובוחרים \"עצרתי כאן\"."); return; }
+    if(b.tr!==TR.key){ const t=TRACTS.find(x=>x.key===b.tr); if(!t) return; toast("עובר למסכת "+t.he+"…"); await loadTractate(b.tr,b.a); if(TR.key!==b.tr) return; }
+    if(!A||!A[b.a]||!A[b.a][b.u]) return;
+    layoutAt({a:b.a,u:b.u,w:b.g>0?gToTok(b.a,b.u,b.g):0}); }
+  $("bmBtn").onclick=goBM;
+  function openWord(a,u,g){
+    panelView="note";
+    const ns=notesFor(a,u,g);
+    if(ns.some(n=>!shown(n.t))||ns.length>1) renderNoteView(a,u,g); else renderNoteEditor(a,u,g,ns.length?0:null);
+    openPanel();
+  }
+  function renderNoteView(a,u,g){
+    panel.innerHTML="";
+    panel.append(contextEl(a,u,g));
+    notesFor(a,u,g).forEach((n,i)=>{
+      panel.append(h("div",{class:"nview t-"+n.t},h("span",{class:"ntag"},TYPES[n.t]),h("div",{class:"ntext"},n.x),
+        h("div",{class:"row"},h("button",{onclick:()=>renderNoteEditor(a,u,g,i)},"עריכה"))));
+    });
+    panel.append(h("div",{class:"row"},h("button",{class:"primary",onclick:()=>renderNoteEditor(a,u,g,null)},"טקסט נוסף על המילה"),bmButton(a,u,g),
+      h("button",{class:"ghost spacer",onclick:closePanel},"סגירה")));
+  }
+  function renderNoteEditor(a,u,g,idx){
+    panel.innerHTML="";
+    const list=notesFor(a,u,g), cur=idx!=null&&idx>=0?list[idx]:null;
+    panel.append(contextEl(a,u,g));
+    const ta=h("textarea",{id:"noteIn",rows:"3",dir:"rtl",placeholder:"הקלד או הכתב. שאלה: מסתיימת ב־? · כותרת: מתחילה במילה \"כותרת\" · רקע: מתחיל במילה \"רקע\" · כל השאר: הערה"});
+    ta.value=cur?cur.x:"";
+    let type=cur?cur.t:"n", manual=!!cur;
+    const chips=h("div",{class:"seg3 seg4",role:"group","aria-label":"סוג הטקסט"});
+    const sync=()=>chips.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.t===type)));
+    for(const t of ["q","n","b","r"]) chips.append(h("button",{"data-t":t,class:"c-"+t,onclick:()=>{ type=t; manual=true; sync(); ta.focus(); }},TYPES[t]));
+    ta.addEventListener("input",()=>{ if(!manual){ type=detect(ta.value).t; sync(); } });
+    const save=()=>{
+      const d=detect(ta.value), x=d.x, t=manual?type:d.t, key=a+":"+u+":"+g, arr=[...list];
+      if(cur){ if(x) arr[idx]={t,x,d:cur.d||today()}; else arr.splice(idx,1); } else if(x) arr.push({t,x,d:today()});
+      if(arr.length) NOTES[key]=arr; else delete NOTES[key];
+      storeNotes(a); closePanel(); keepPlace();
+    };
+    ta.addEventListener("keydown",e=>{ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){ e.preventDefault(); save(); } });
+    panel.append(ta,chips);
+    let armed=false;
+    const del=cur?h("button",{class:"ghost",onclick:()=>{ if(!armed){ armed=true; del.textContent="לחץ שוב למחיקה"; return; } ta.value=""; save(); }},"מחיקה"):null;
+    panel.append(h("div",{class:"row"},h("button",{class:"primary",onclick:save},"שמירה"),del,cur?null:bmButton(a,u,g),
+      h("button",{class:"ghost spacer",onclick:()=>{ (list.some(n=>!shown(n.t))||list.length>1)&&cur?renderNoteView(a,u,g):closePanel(); }},"ביטול")));
+    sync();
+    setTimeout(()=>{ try{ ta.focus(); }catch(e){} },30);
+  }
+
+  /* ---------- learner state: the reading plan and how far it has got ---------- */
+  // plan: {startF, startDay}; pos: flat index read up to; day: today's fixed reading {d,from,to}; log: {day:{w,done}}; sums: what I wrote after bites
+  let ST={plan:null,pos:0,log:{}};
+  let dbBase=null, stDirty=false, saveT=null;
+  function loadLocal(){ ST={plan:null,pos:0,log:{}}; const s=lsGetT("st",null); if(s) ST={plan:s.plan||null,pos:s.pos||0,log:s.log||{},day:s.day||null,sums:s.sums||[],m:s.m||0}; }
+  function saveLocal(){ lsSetT("st",ST); }
+  function save(){ saveLocal(); stDirty=true; clearTimeout(saveT); saveT=setTimeout(flush,800); }
+  async function flush(){
+    if(!dbBase||!stDirty) return;
+    try{ stDirty=false; await dbBase.set({plan:ST.plan,pos:ST.pos,day:ST.day||null,sums:(ST.sums||[]).slice(-200),log:trimLog(ST.log),v:4,m:ST.m||0}); }catch(e){ stDirty=true; }
+  }
+  function trimLog(l){ const keys=Object.keys(l).sort().slice(-120); const o={}; for(const k of keys) o[k]=l[k]; return o; }
+  async function initStore(){
+    try{
+      const c=window.claude; if(!c||!c.use) return;
+      const [db,user]=await Promise.all([c.use("db"),c.use("user")]); if(!db||!user) return;
+      const id=await user.id(); if(!id) return;
+      const myTR=TR; dbBase=db.doc("data/users/"+id+"/"+TR.db); dbRoot={db,id};
+      prefsRef=db.doc("data/users/"+id+"/prefs"); syncPrefs();
+      const snap=await dbBase.get(); if(myTR!==TR) return;
+      if(snap.exists){ const d=snap.data();
+        // a plan edited later wins as a whole; otherwise the record that has read further wins
+        if(d.plan&&((d.m||0)>(ST.m||0)||(!(ST.m>(d.m||0))&&(!ST.plan||(d.pos||0)>=(ST.pos||0))))){ ST.plan=d.plan; ST.pos=d.pos||0; ST.m=d.m||0; if(d.day) ST.day=d.day; }
+        const log={...(d.log||{})}; for(const [k,v] of Object.entries(ST.log)){ const o=log[k]||{w:0}; log[k]={w:Math.max(o.w||0,v.w||0),...((o.done||v.done)?{done:1}:{})}; } ST.log=log;
+        const seen=new Set((ST.sums||[]).map(s=>s.d+":"+s.f)); for(const s of d.sums||[]) if(!seen.has(s.d+":"+s.f)) (ST.sums=ST.sums||[]).push(s);
+        (ST.sums||[]).sort((x,y)=>x.d-y.d||x.f-y.f);
+      }
+      saveLocal(); notePlanTr(); stDirty=true; flush(); await syncNotes(myTR); if(myTR!==TR) return;
+      refreshBadge(); if(!scrim.hidden&&panelView==="plan") renderPlanForm(); relayout();
+    }catch(e){ dbBase=null; }
+  }
+
+  /* ---------- display settings and reading place, kept in the account as well (some app views do not keep browser storage) ---------- */
+  var prefsRef=null, prefsT=null, applyingPrefs=false, prefsDone=false;
+  function prefsDirty(){ if(applyingPrefs) return; try{ localStorage.setItem(LS("prefs-m"),JSON.stringify(Date.now())); }catch(e){} clearTimeout(prefsT); prefsT=setTimeout(pushPrefs,1500); }
+  function pushPrefs(){ if(!prefsRef) return; const v={};
+    for(const k of PREFK){ const x=lsGet(k,null); if(x!==null) v[k]=x; }
+    for(const t of TRACTS){ const a=lsGet(t.ls+"amud",null); if(a!==null) v["amud:"+t.key]=a; }
+    prefsRef.set({v,m:lsGet("prefs-m",0)||Date.now()}).catch(()=>{}); }
+  async function syncPrefs(){
+    if(!prefsRef||prefsDone) return; prefsDone=true;
+    try{ const s=await prefsRef.get(), lm=lsGet("prefs-m",0);
+      if(s.exists){ const d=s.data()||{}; if((d.m||0)>lm&&d.v){ applyPrefs(d.v,d.m); return; } }
+      pushPrefs();
+    }catch(e){} }
+  function applyPrefs(v,m){
+    applyingPrefs=true;
+    try{
+      for(const [k,x] of Object.entries(v)) if(k.startsWith("amud:")){ const t=TRACTS.find(t=>t.key===k.slice(5)); if(t) lsSet(t.ls+"amud",x); }
+      if(v.bm!==undefined) lsSet("bm",v.bm);
+      BM=curBM();
+      if(v.px!=null) setSize(v.px); if(v.lh!=null) setLine(v.lh); if(v.font) setFont(v.font);
+      if(v.justify!=null) setJustify(!!v.justify); if(v.refs!=null) setRefs(v.refs!==false); if(v.niqqud!=null) setNiqqud(v.niqqud!==false);
+      setStz(!!v.stz); setRashi(!!v.rashi&&!v.stz); if(v.rw!=null){ rw=+v.rw||2; lsSet("rw",rw); } if(v.rscript!=null) setRscript(v.rscript!==false);
+      try{ localStorage.setItem(LS("prefs-m"),JSON.stringify(m)); }catch(e){}
+    }finally{ applyingPrefs=false; }
+    if(v.tr&&v.tr!==TR.key&&TRACTS.find(t=>t.key===v.tr)){ loadTractate(v.tr,v["amud:"+v.tr]); return; }
+    (stzOn?loadStz():rashiOn?loadRashi():Promise.resolve()).then(()=>fontLoads(fontKey)).then(()=>{ const am=v["amud:"+TR.key]; if(A&&am!=null&&A[am]) layout(am); else relayout(); });
+  }
+
+  const today=()=>dayNum();
+  /* ---------- daily reading: a fixed pace of 3 dapim a day, counted in words (the tractate's average daf × 3),
+     so every day is the same size; read in bites of 1/16 of the day ---------- */
+  const wordsBetween=(a,b)=>{ let s=0; for(let i=a;i<b&&i<F.length;i++) s+=F[i].w; return s; };
+  function planAmt(){ const n=A.filter(Boolean).length; return Math.round(wordsBetween(0,F.length)/(n/2)*3); }
+  const biteSize=()=>Math.round(planAmt()/16);
+  // today's reading is fixed when the day starts (from wherever the reader is), so bites never move its end
+  function todayPortion(){
+    if(!ST.plan) return null;
+    const d=today();
+    if(ST.day&&ST.day.d===d&&ST.day.to<=F.length) return {from:ST.day.from,to:ST.day.to,w:wordsBetween(ST.day.from,ST.day.to)};
+    const from=ST.pos; if(from>=F.length) return null;
+    const amt=planAmt(); let i=from, acc=0;
+    while(i<F.length&&acc<amt){ acc+=F[i].w; i++; }
+    // end on the nearer unit edge
+    if(i>from+1&&i<=F.length&&acc-amt>amt-(acc-F[i-1].w)) i--;
+    ST.day={d,from,to:i}; saveLocal(); stDirty=true;
+    return {from,to:i,w:wordsBetween(from,i)};
+  }
+  function planStatus(){
+    if(!ST.plan) return null;
+    const t=today(), days=Math.max(0,t-ST.plan.startDay);
+    const read=wordsBetween(ST.plan.startF,ST.pos), exp=days*planAmt();
+    return {read,exp,diff:read-exp};
+  }
+  function logDay(){ const k=isoDay(today()); return ST.log[k]||(ST.log[k]={w:0}); }
+  const rangeTxt=p=>{ const a1=F[p.from].a, a2=F[Math.max(p.from,p.to-1)].a; return a1===a2?amudName(a1):amudName(a1)+" – "+amudName(a2); };
+  function dayDone(){ const p=todayPortion(); return !p||ST.pos>=p.to; }
+  function readToday(){ return dayDone(); }
+  function pctToday(){ const p=todayPortion(); if(!p||!p.w) return 100; return Math.min(100,Math.round(100*wordsBetween(p.from,Math.min(ST.pos,p.to))/p.w)); }
+  // days in a row with today's reading done; Shabbat neither counts nor breaks
+  function streak(){ let n=0, d=today(); const done=k=>(ST.log[isoDay(k)]||{}).done;
+    if(!done(d)) d--;
+    for(;;d--){ if(dayDate(d).getDay()===6) continue; if(done(d)) n++; else break; if(n>3650) break; }
+    return n; }
+  function refreshBadge(){ const b=$("badge"); b.hidden=!(ST.plan&&todayPortion()&&!dayDone()); b.textContent="•"; }
+  function lateTxt(){ const st=planStatus(); if(!st) return ""; const amt=planAmt(), d=st.diff, days=Math.round(Math.abs(d)/amt);
+    if(d<-amt*0.5) return "מאחר בכ־"+Math.max(1,days)+" ימים"; if(d>amt*1.5) return "מקדים בכ־"+Math.max(1,days-1)+" ימים"; return ""; }
+  // there is one plan; remember which tractate holds it (in the account too), so "היום" works from any tractate
+  let dbRoot=null, storeP=null;
+  function notePlanTr(){ if(ST.plan&&lsGet("plantr",null)!==TR.key) lsSet("plantr",TR.key); }
+  async function findPlanTr(){
+    const k=lsGet("plantr",""); if(k&&TRACTS.some(t=>t.key===k)) return k;
+    for(const t of TRACTS){ const s=lsGet(t.ls+"st",null); if(s&&s.plan) return t.key; }
+    if(dbRoot){ const r=await Promise.all(TRACTS.map(t=>dbRoot.db.doc("data/users/"+dbRoot.id+"/"+t.db).get()
+        .then(s=>s.exists&&(s.data()||{}).plan?t.key:null).catch(()=>null)));
+      const f=r.find(Boolean); if(f){ lsSet("plantr",f); return f; } }
+    return null;
+  }
+
+  /* ---------- bites ---------- */
+  let BITE=null;   // {from,to} flat units, the bite on screen
+  function nextBite(){
+    const p=todayPortion(), from=ST.pos; if(from>=F.length) return null;
+    const size=biteSize(), cap=p&&from<p.to?p.to:F.length;
+    let i=from, acc=0;
+    while(i<cap&&acc<size){ acc+=F[i].w; i++; }
+    if(i>from+1&&acc-size>size-(acc-F[i-1].w)) i--;
+    // do not leave a crumb at the end of the day
+    if(cap===(p&&p.to)&&i<cap&&wordsBetween(i,cap)<size*0.4) i=cap;
+    return {from,to:i,w:wordsBetween(from,i)};
+  }
+  function lastSummary(){ const s=ST.sums||[]; return s.length?s[s.length-1]:null; }
+  function showBite(){
+    const b=nextBite();
+    if(!b){ toast("סיימת את המסכת · הדרן עלך מסכת "+TR.he,"עריכת התוכנית",openPlan,7000); return; }
+    BITE=b; flow.classList.add("biteon"); readAt(b.from);
+  }
+  function endBite(){ BITE=null; flow.classList.remove("biteon"); }
+  async function jumpToday(){
+    if(!ST.plan){
+      const k=await findPlanTr();
+      if(k&&k!==TR.key){ const t=TRACTS.find(x=>x.key===k); toast("עובר למסכת "+t.he+"…"); await loadTractate(k,null); try{ await storeP; }catch(e){}
+        if(TR.key!==k) return; if(ST.plan) return jumpToday(); }
+      panelView="plan"; renderPlanForm(); openPanel(); return; }
+    todayPortion(); showBite();
+    const st=streak();
+    toast((dayDone()?"✓ היום הושלם · ממשיכים קדימה":"היום: "+pctToday()+"%")+(st?" · רצף "+st+(st===1?" יום":" ימים"):""),"עריכת התוכנית",openPlan,5000);
+  }
+  $("todayBtn").onclick=jumpToday;
+  function sparkle(el){ if(reduce||!el) return; el.style.position="relative";
+    for(let i=0;i<12;i++){ const s=document.createElement("span"); s.className="spk"; s.textContent="✦";
+      const ang=i/12*Math.PI*2; s.style.left=(50+Math.cos(ang)*35)+"%"; s.style.top=(50+Math.sin(ang)*35)+"%";
+      s.style.setProperty("--dx",Math.round(Math.cos(ang)*48)+"px"); s.style.setProperty("--dy",Math.round(Math.sin(ang)*36)+"px");
+      s.style.color=i%2?"var(--gold)":"var(--ok)"; el.append(s); setTimeout(()=>s.remove(),1000); } }
+  let askSum=lsGet("askSum",true)!==false;
+  function finishBite(){
+    if(!BITE) return;
+    const b=BITE, p=todayPortion(), wasDone=dayDone();
+    ST.pos=Math.max(ST.pos,b.to); logDay().w+=b.w;
+    const nowDone=!wasDone&&dayDone(); if(nowDone) logDay().done=1;
+    save(); refreshBadge();
+    const last=[...flow.querySelectorAll(".u.blast")].pop();
+    flow.querySelectorAll(".u.bite").forEach(e=>e.classList.add("bdone"));
+    if(last){ sparkle(last); if(nowDone) setTimeout(()=>sparkle(last),350); }
+    try{ if(navigator.vibrate) navigator.vibrate(nowDone?[40,60,40]:30); }catch(e){}
+    setTimeout(()=>renderBiteDone(b,nowDone),reduce?0:550);
+  }
+  function renderBiteDone(b,nowDone){
+    panelView="bite"; panel.innerHTML="";
+    const st=streak();
+    panel.append(h("div",{class:"win"+(nowDone?" big":"")},
+      h("div",{class:"wt"},nowDone?"✓ הקריאה של היום הושלמה":"✓ ביס הושלם"),
+      h("div",{class:"ws"},nowDone?(st?"רצף "+st+(st===1?" יום":" ימים"):"יום ראשון ברצף"):"היום: "+pctToday()+"%")));
+    let ta=null;
+    if(askSum){
+      ta=h("textarea",{id:"sumIn",rows:"3",dir:"rtl",placeholder:"במילים שלך: מה נאמר כאן? אפשר להכתיב במיקרופון של המקלדת"});
+      panel.append(h("label",{class:"f",for:"sumIn"},"מה למדת בביס הזה?"),ta);
+    }
+    const keep=()=>{ const x=ta&&ta.value.trim(); if(x){ (ST.sums=ST.sums||[]).push({d:today(),f:b.from,t:b.to,x}); if(ST.sums.length>200) ST.sums=ST.sums.slice(-200); save(); } };
+    panel.append(h("div",{class:"row"},
+      h("button",{class:"primary",onclick:()=>{ keep(); closePanel(); showBite(); }},"עוד ביס"),
+      h("button",{onclick:()=>{ keep(); closePanel(); endBite(); keepPlace(); }},"מספיק לעכשיו")));
+    openPanel();
+    if(ta) setTimeout(()=>{ try{ ta.focus(); }catch(e){} },60);
+  }
+  // finishing the whole day at once (reading straight through, without bites)
+  function finishReading(){
+    const p=todayPortion(); if(!p) return;
+    const w=wordsBetween(ST.pos,p.to); ST.pos=Math.max(ST.pos,p.to); logDay().w+=w; logDay().done=1; save();
+    portion=null; refreshBadge(); endBite(); keepPlace();
+    const st=streak(); toast("✓ הקריאה של היום הושלמה"+(st?" · רצף "+st+(st===1?" יום":" ימים"):""),null,null,5000);
+  }
+
+  /* ---------- plan form ---------- */
+  let panelView="";
+  function openPlan(){ panelView="plan"; renderPlanForm(); openPanel(); }
+  function renderPlanForm(){
+    panelView="plan"; panel.innerHTML="";
+    const isNew=!ST.plan, p=ST.plan||{startF:flatOf(current>=0?current:first,0)||0,startDay:today()};
+    const amt=planAmt();
+    panel.append(h("h2",{id:"panelTitle"},"תוכנית לימוד · מסכת "+TR.he));
+    panel.append(h("p",{class:"note"},"קצב קבוע של 3 דפים ביום, לפי מספר המילים: כ־"+fmtN(amt)+" מילים ביום במסכת "+TR.he+" (ממוצע דף כפול 3), כך שכל הימים שווים. \"היום\" מביא אותך לביס הבא, כ־"+fmtN(biteSize())+" מילים."));
+    const amudOpts=sel=>{ const o=[]; for(let i=first;i<A.length;i++) if(A[i]) o.push(h("option",{value:String(i),selected:i===sel},"דף "+amudName(i))); return o; };
+    const from=h("select",{id:"fromSel"},amudOpts(F[p.startF].a));
+    const date=h("input",{type:"date",id:"startDate",value:isoDay(p.startDay)});
+    const posA=F[Math.min(isNew?p.startF:ST.pos,F.length-1)].a;
+    const at=h("select",{id:"atSel"},amudOpts(posA));
+    panel.append(h("div",{class:"row"},h("label",{class:"f"},"מתחילים מ",from),h("label",{class:"f"},"בתאריך",date)));
+    if(!isNew) panel.append(h("div",{class:"row"},h("label",{class:"f"},"הגעתי עד",at),h("span",{class:"note"},"הביס הבא מתחיל מכאן")));
+    const est=h("p",{class:"note"});
+    const sync=()=>{ const sf=flatOf(+from.value,0), w=wordsBetween(sf,F.length), days=Math.ceil(w/amt);
+      const end=dayDate(parseIso(date.value||isoDay(today()))+days-1);
+      est.textContent=fmtN(w)+" מילים · "+days+" ימי קריאה · סיום משוער "+end.toLocaleDateString("he-IL",{day:"numeric",month:"numeric",year:"numeric"}); };
+    date.onchange=sync; from.onchange=()=>{ if(+at.value<+from.value) at.value=from.value; sync(); }; sync();
+    panel.append(est);
+    if(!isNew){ const lt=lateTxt(); if(lt) panel.append(h("p",{class:lt.startsWith("מאחר")?"warnc":"okc"},lt+" לפי התוכנית")); }
+    let armed=false;
+    const del=isNew?null:h("button",{class:"ghost",onclick:()=>{ if(!armed){ armed=true; del.textContent="לחץ שוב למחיקת התוכנית"; return; }
+      ST={plan:null,pos:0,log:ST.log,sums:ST.sums,m:Date.now()}; if(lsGet("plantr",null)===TR.key) lsSet("plantr",""); portion=null; endBite(); save(); refreshBadge(); closePanel(); keepPlace(); }},"מחיקת התוכנית");
+    panel.append(h("div",{class:"row"},
+      h("button",{class:"primary",onclick:()=>{
+        const sf=flatOf(+from.value,0), aA=isNew?+from.value:+at.value;
+        ST.plan={startF:sf,startDay:parseIso(date.value||isoDay(today()))};
+        if(isNew) ST.pos=sf; else if(aA!==posA) ST.pos=flatOf(aA,0);
+        if(isNew||aA!==posA) ST.day=null;
+        ST.m=Date.now(); lsSet("plantr",TR.key); save(); portion=null; refreshBadge(); closePanel(); keepPlace();
+        toast("התוכנית נשמרה","לביס הראשון",jumpToday,6000); }},"שמירה"),
+      del,
+      h("button",{class:"ghost spacer",onclick:closePanel},"ביטול")));
+  }
+
+  /* ---------- map: the mishnayot and the learner's own titles; background opens on request ---------- */
+  function mishnaHead(g){
+    const {a,u}=F[g.s]; let t=A[a][u][1].replace(/[⁣⁤]/g,"");
+    const tw=t.split(" "); if(plain(tw[0]||"").startsWith("מתני")) tw.shift(); t=tw.join(" ");
+    // the first sentence, or the first few if it is very short ("בית שמאי אומרים:")
+    const sents=t.match(/[^.:?!]+[.:?!]*/g)||[t]; let s="";
+    for(const x of sents){ s+=x; if(s.trim().split(" ").length>=7) break; }
+    s=s.trim(); const ws=s.split(" ");
+    if(ws.length>28) s=ws.slice(0,28).join(" ")+" …";
+    return nq(s);
+  }
+  function openMap(){ panelView="map"; renderMap(); openPanel(true); }
+  $("mapBtn").onclick=openMap;
+  function renderMap(){
+    panel.innerHTML="";
+    const ev=[];
+    SG.forEach(g=>{ if(g.k==="m") ev.push({f:g.s,g:-1,k:"m",sg:g}); });
+    for(const [k,arr] of Object.entries(NOTES)){ if(!arr) continue; const [a,u,g]=k.split(":").map(Number), f=flatOf(a,u); if(f==null) continue;
+      arr.forEach((n,i)=>{ if(n.t==="b"||n.t==="r") ev.push({f,g,i,k:n.t,x:n.x,a,u}); }); }
+    ev.sort((x,y)=>x.f-y.f||x.g-y.g||(x.i||0)-(y.i||0));
+    const nT=ev.filter(e=>e.k==="b").length, nR=ev.filter(e=>e.k==="r").length;
+    const body=h("div",{class:"mapbody"});
+    let bkOpen=false;
+    const allBtn=nR?h("button",{onclick:()=>{ bkOpen=!bkOpen; body.querySelectorAll("details.mbk").forEach(d=>d.open=bkOpen); allBtn.textContent=bkOpen?"סגירת הרקע":"פתיחת כל הרקע ("+nR+")"; }},"פתיחת כל הרקע ("+nR+")"):null;
+    panel.append(h("div",{class:"row"},h("h2",{id:"panelTitle"},"מפת מסכת "+TR.he),allBtn,h("button",{class:"ghost spacer",onclick:closePanel},"סגירה")));
+    panel.append(h("p",{class:"note"},"פתיחת כל משנה, ובין המשניות הכותרות שכתבת"+(nT?" ("+nT+")":"")+". כותרת נכתבת בלחיצה על מילה, בסוג \"כותרת\"; דברי רקע בסוג \"רקע\". לחיצה על שורה מעבירה לשם."));
+    const here=flatOf(current>=0?current:first,0)||0; let hereEl=null, ci=-1;
+    const goTo=(a,u,g)=>{ closePanel(); layoutAt({a,u,w:g>0?gToTok(a,u,g):0}); };
+    for(const e of ev){
+      const p=perekOfFlat(e.f);
+      if(p!==ci){ ci=p; body.append(h("div",{class:"mperek"},"פרק "+gem(p+1)+" · "+CHN[p])); }
+      let el;
+      if(e.k==="m"){ const {a,u}=F[e.f];
+        el=h("button",{class:"mrow mi",onclick:()=>goTo(a,u,0)},h("span",{class:"r"},amudName(a)),h("span",{class:"t"},h("b",{},"מתני׳"),mishnaHead(e.sg))); }
+      else if(e.k==="b") el=h("button",{class:"mrow ti",onclick:()=>goTo(e.a,e.u,e.g)},h("span",{class:"r"},amudName(e.a)),h("span",{class:"t"},e.x));
+      else el=h("details",{class:"mbk"},h("summary",{},"רקע · "+amudName(e.a)),h("div",{class:"bx",onclick:()=>goTo(e.a,e.u,e.g)},e.x));
+      if(e.f<=here) hereEl=el;
+      body.append(el);
+    }
+    if(!ev.length) body.append(h("p",{class:"note"},"אין משניות במסכת."));
+    panel.append(body);
+    if(hereEl) setTimeout(()=>{ try{ hereEl.scrollIntoView({block:"center"}); }catch(e){} },30);
+  }
+  /* ---------- settings ---------- */
+  $("setBtn").onclick=()=>{ loadExtraFonts(); Object.keys(FONTS).forEach(loadFaces); panelView="set"; renderSettings(); openPanel(); };
+  const FONTS={
+    frank:['"Frank Ruhl Libre"',null,"פרנק־ריהל","האות הקלאסית של ספרי הקודש המודפסים"],
+    rubik:['"Rubik"',null,"רוביק","ללא תגים, עגול ורך"],
+    heebo:['"Heebo"',null,"היבו","ללא תגים, נקי ודק"] };
+  // fonts shipped as files are read and registered from their bytes (the page may not load font URLs itself)
+  const faceP={};
+  function loadFaces(k){ const f=FONTS[k]; if(!f||!f[4]||typeof f[4]!=="object") return Promise.resolve();
+    if(faceP[k]) return faceP[k];
+    const fam=f[0].replace(/"/g,"");
+    return faceP[k]=Promise.all(Object.entries(f[4]).map(([w,url])=>fetch(url).then(r=>{ if(!r.ok) throw 0; return r.arrayBuffer(); })
+      .then(buf=>new FontFace(fam,buf,{weight:String(w)}).load()).then(ff=>document.fonts.add(ff)))).catch(()=>{}); }
+  const hasLight=k=>{ const f=FONTS[k]; return !!(f&&f[4]&&(f[4]===true?f[5]:f[4][300])); };
+  let extraP=null;
+  function loadExtraFonts(){ if(extraP) return extraP;
+    extraP=new Promise(res=>{ const l=h("link",{rel:"stylesheet",href:"https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;700&family=Heebo:wght@400;600;700&display=swap"});
+      l.onload=res; l.onerror=res; setTimeout(res,4000); document.head.append(l); });
+    return extraP; }
+  let fontKey=lsGet("font","frank"); if(!FONTS[fontKey]&&fontKey!=="custom") fontKey="frank";
+  const isExtra=k=>["rubik","heebo"].includes(k);
+  function fontLoads(k){ if(isExtra(k)) return loadExtraFonts().then(()=>fontLoads2(k)); if(FONTS[k]&&FONTS[k][4]) return loadFaces(k).then(()=>fontLoads2(k)); return fontLoads2(k); }
+  function fontLoads2(k){ const f=FONTS[k]||FONTS.frank; if(!document.fonts) return Promise.resolve();
+    const L=[document.fonts.load("400 20px "+f[0]),document.fonts.load("700 20px "+f[0])]; if(f[1]) L.push(document.fonts.load("400 20px "+f[1])); return Promise.all(L).catch(()=>{}); }
+  function setFont(k,relay){ const keep=!FONTS[k]&&k==="custom"; if(!FONTS[k]) k="frank"; fontKey=k; const [g,s]=FONTS[k], fb=',"Frank Ruhl Libre","Noto Serif Hebrew",Georgia,serif', r=document.documentElement.style;
+    r.setProperty("--gfont",g+fb); r.setProperty("--sfont",(s||g)+fb); document.documentElement.classList.toggle("light-quotes",hasLight(k)); document.documentElement.classList.toggle("face-font",!!(FONTS[k]&&FONTS[k][4])); if(!keep) lsSet("font",k); if(relay) fontLoads(k).then(relayout); }
+  function setSize(v,relay){ size=Math.round(Math.max(10,Math.min(34,v))); document.documentElement.style.setProperty("--size",size+"px"); lsSet("px",size); if(relay) relayout(); }
+  function setNiqqud(on,relay){ niqqud=on; lsSet("niqqud",on); if(relay) relayout(); }
+  let showRefs=true;
+  function setRefs(on,relay){ showRefs=on; flow.classList.toggle("norefs",!on); lsSet("refs",on); if(relay) relayout(); }
+  let justify=false;
+  function setJustify(on,relay){ justify=on; flow.classList.toggle("justify",on); lsSet("justify",on); if(relay) relayout(); }
+  if(document.fullscreenEnabled||document.webkitFullscreenEnabled){
+    const fb=$("fsBtn"); fb.hidden=false;
+    fb.onclick=()=>{ const d=document, el=d.documentElement;
+      if(d.fullscreenElement||d.webkitFullscreenElement){ (d.exitFullscreen||d.webkitExitFullscreen).call(d); return; }
+      const rq=el.requestFullscreen||el.webkitRequestFullscreen; try{ const pr=rq&&rq.call(el); if(pr&&pr.catch) pr.catch(()=>{ fb.hidden=true; }); }catch(e){ fb.hidden=true; } };
+    const fsSync=()=>fb.setAttribute("aria-pressed",String(!!(document.fullscreenElement||document.webkitFullscreenElement)));
+    document.addEventListener("fullscreenchange",fsSync); document.addEventListener("webkitfullscreenchange",fsSync);
+  }
+  // line spacing in steps; the gap between units and between columns follows it
+  const LH=[1.3,1.42,1.55,1.7,1.85,2.0]; let lhi=3;
+  function setLine(i,relay){ lhi=Math.max(0,Math.min(LH.length-1,i)); const lh=LH[lhi]; dense=lh<1.5;
+    const r=document.documentElement.style; r.setProperty("--lh",String(lh)); r.setProperty("--ugap",(0.2+(lh-1.3)*0.75).toFixed(2)+"em");
+    lsSet("lh",lhi); if(relay) relayout(); }
+  function setDense(on,relay){ setLine(on?1:3,relay); }
+  function renderSettings(){
+    panel.innerHTML="";
+    panel.append(h("h2",{id:"panelTitle"},"הגדרות"));
+    const sz=h("span",{style:"min-width:2.5em;text-align:center;font-variant-numeric:tabular-nums"},String(size));
+    panel.append(h("div",{class:"block"},h("h3",{},"תצוגה"),
+      h("div",{class:"row"},h("span",{},"גודל אותיות"),
+        h("button",{class:"icon",onclick:()=>{ setSize(size-(size<=17?1:2),true); sz.textContent=size; }},"א־"),sz,
+        h("button",{class:"icon",onclick:()=>{ setSize(size+(size<=16?1:2),true); sz.textContent=size; }},"א+")),
+      (()=>{ const v=h("span",{style:"min-width:2.5em;text-align:center;font-variant-numeric:tabular-nums"},String(lhi+1));
+        return h("div",{class:"row"},h("span",{},"ריווח שורות"),
+          h("button",{class:"icon","aria-label":"ציפוף שורות",onclick:()=>{ setLine(lhi-1,true); v.textContent=lhi+1; }},"−"),v,
+          h("button",{class:"icon","aria-label":"ריווח שורות",onclick:()=>{ setLine(lhi+1,true); v.textContent=lhi+1; }},"+"),
+          h("span",{class:"note"},"צפוף מכניס יותר טקסט במסך")); })(),
+      h("div",{class:"row"},h("button",{"aria-pressed":String(niqqud),onclick:e=>{ setNiqqud(!niqqud,true); e.currentTarget.setAttribute("aria-pressed",String(niqqud)); }},"ניקוד"),
+        h("span",{class:"note"},"הניקוד נעשה אוטומטית ועלול לטעות; בלעדיו מוצג נוסח קורן כפי שהוא")),
+      h("div",{class:"row"},h("button",{"aria-pressed":String(showRefs),onclick:e=>{ setRefs(!showRefs,true); e.currentTarget.setAttribute("aria-pressed",String(showRefs)); }},"מראי מקום"),
+        h("span",{class:"note"},"מקור קטן אחרי כל ציטוט; לחיצה עליו פותחת את הפסוק")),
+      h("div",{class:"row"},h("button",{"aria-pressed":String(rscript),onclick:e=>{ setRscript(!rscript,rashiOn); e.currentTarget.setAttribute("aria-pressed",String(rscript)); }},"כתב רש״י"),
+        ...[1,2,3].map(i=>h("button",{class:"rwb","aria-pressed":String(rw===i),onclick:e=>{ setRw(i,rashiOn); e.currentTarget.parentNode.querySelectorAll(".rwb").forEach(b=>b.setAttribute("aria-pressed",String(b===e.currentTarget))); }},RW[i-1])),
+        h("span",{class:"note"},"פירוש רש״י באותיות רש״י; כבוי: באותיות רגילות")),
+      h("div",{class:"row"},h("button",{"aria-pressed":String(justify),onclick:e=>{ setJustify(!justify,true); e.currentTarget.setAttribute("aria-pressed",String(justify)); }},"יישור דו־צדדי"),
+        h("span",{class:"note"},"שולי הטורים ישרים משני הצדדים")),
+      h("h3",{},"גופן"),
+      h("div",{class:"fonts",role:"radiogroup","aria-label":"גופן"},Object.entries(FONTS).map(([k,v])=>h("button",{class:"fopt",role:"radio","aria-checked":String(k===fontKey),
+        onclick:e=>{ const me=e.currentTarget; setFont(k,true); panel.querySelectorAll(".fopt").forEach(b=>b.setAttribute("aria-checked",String(b===me))); }},
+        h("span",{class:"fname"},v[2]),
+        h("span",{class:"fsample",style:"font-family:"+v[0]+",serif"},"תָּנוּ רַבָּנַן: הַמּוֹצִיא מֵחֲנוּת לְפַלְטֵיָא דֶּרֶךְ סְטָיו — חַיָּיב"),
+        v[1]?h("span",{class:"fsample st",style:"font-family:"+v[1]+",serif"},"הוצאה מרשות היחיד לרשות הרבים"):null,
+        h("span",{class:"note"},v[3])))),
+      ));
+    panel.append(h("div",{class:"block"},h("h3",{},"תוכנית לימוד · מסכת "+TR.he),
+      ST.plan?h("div",{},"3 דפים ביום · כ־"+fmtN(planAmt())+" מילים · היום: "+pctToday()+"%"+(streak()?" · רצף "+streak():"")):h("div",{class:"note"},"אין עדיין תוכנית"),
+      h("div",{class:"row"},h("button",{"aria-pressed":String(askSum),onclick:e=>{ askSum=!askSum; lsSet("askSum",askSum); e.currentTarget.setAttribute("aria-pressed",String(askSum)); }},"\"מה למדת?\" אחרי ביס"),
+        h("span",{class:"note"},"מה שתכתוב יוצג לך בתחילת הביס הבא")),
+      h("div",{class:"row"},h("button",{class:"primary",onclick:()=>renderPlanForm()},ST.plan?"עריכת התוכנית":"יצירת תוכנית"))));
+    if(window.BABLI_WEB&&window.BABLI_WEB.blocks) for(const b of window.BABLI_WEB.blocks()) panel.append(b);
+    panel.append(transferBlock());
+    panel.append(h("div",{class:"row"},h("button",{class:"ghost spacer",onclick:closePanel},"סגירה")));
+    panel.append(h("p",{class:"note"},"נוסח מנוקד: מהדורת William Davidson בספריא (CC-BY-NC). ביאור: שטיינזלץ, מהדורת קורן (CC-BY-NC). רש״י: דפוס וילנא, דרך ספריא. חלוקת הסוגיות: לפי סימני הנקודתיים בדפוס וילנא."));
+  }
+
+  /* ---------- moving all data between versions of the app ---------- */
+  function exportAll(){ const o={v:1,app:"babli-betur",t:{}};
+    for(const t of TRACTS) o.t[t.key]={st:lsGet(t.ls+"st",null),notes:lsGet(t.ls+"notes",{}),nm:lsGet(t.ls+"notes-m",{})};
+    return JSON.stringify(o); }
+  function importAll(txt){
+    const o=JSON.parse(txt); if(!o||o.app!=="babli-betur"||!o.t) throw new Error("bad");
+    const now=Date.now();
+    for(const t of TRACTS){ const x=o.t[t.key]; if(!x) continue;
+      const st=lsGet(t.ls+"st",null); if(x.st&&(!st||!st.plan||(x.st.pos||0)>=(st.pos||0))) lsSet(t.ls+"st",x.st);
+      lsSet(t.ls+"notes",{...lsGet(t.ls+"notes",{}),...(x.notes||{})});
+      const nm=lsGet(t.ls+"notes-m",{}); for(const k of Object.keys(x.nm||{})) nm[k]=now; lsSet(t.ls+"notes-m",nm); }
+  }
+  function transferBlock(){
+    const out=h("div",{class:"block"},h("h3",{},"העברת נתונים"),
+      h("p",{class:"note"},"מעתיק את התוכנית וההערות של כל המסכתות, כדי להדביק אותם בגרסה אחרת של האפליקציה. פתח קודם כל מסכת פעם אחת, כדי שהנתונים שלה יהיו מעודכנים."));
+    const box=h("textarea",{id:"xfer",rows:"3",dir:"ltr",placeholder:"כאן מדביקים את הנתונים שהועתקו"}), msg=h("p",{class:"note"});
+    out.append(h("div",{class:"row"},
+      h("button",{onclick:()=>{ const s=exportAll(); box.value=s;
+        const done=()=>{ msg.textContent="הנתונים הועתקו. הדבק אותם בגרסה החדשה, בהגדרות ← העברת נתונים."; };
+        try{ navigator.clipboard.writeText(s).then(done,()=>{ box.select(); msg.textContent="סמן את הטקסט בתיבה והעתק אותו ידנית."; }); }catch(e){ box.select(); msg.textContent="סמן את הטקסט בתיבה והעתק אותו ידנית."; } }},"העתקת הנתונים"),
+      h("button",{onclick:()=>{ try{ importAll(box.value.trim()); msg.textContent="הנתונים נטענו."; loadTractate(TR.key,current); }catch(e){ msg.textContent="זה לא נראה כמו נתונים שהועתקו מהאפליקציה. העתק שוב ונסה."; } }},"טעינת נתונים שהודבקו")),
+      box,msg);
+    return out;
+  }
+
+  /* ---------- start ---------- */
+  setSize(lsGet("px",innerWidth<480?19:20)); { const li=lsGet("lh",null); if(li!=null) setLine(li); else setDense(!!lsGet("dense",false)); } setJustify(!!lsGet("justify",false)); setRefs(lsGet("refs",true)!==false); niqqud=lsGet("niqqud",true)!==false; setFont(fontKey);
+  if(lsGet("stz",false)) setStz(true); else if(lsGet("rashi",false)) setRashi(true);
+  setRscript(rscript);
+  const SEDER={"Seder Zeraim":"סדר זרעים","Seder Moed":"סדר מועד","Seder Nashim":"סדר נשים","Seder Nezikin":"סדר נזיקין","Seder Kodashim":"סדר קדשים","Seder Tahorot":"סדר טהרות"};
+  function fillTrSel(){
+    const sel=$("trSel"); sel.innerHTML=""; let grp=null, last=null;
+    for(const t of TRACTS){
+      const o=h("option",{value:t.key,selected:t===TR||null},"מסכת "+t.he);
+      if(t.seder&&t.seder!==last){ grp=h("optgroup",{label:SEDER[t.seder]||t.seder}); sel.append(grp); last=t.seder; }
+      (grp||sel).append(o); }
+  }
+  async function loadTractList(){
+    try{ const r=await fetch("tracts.json"); if(!r.ok) return; const list=await r.json();
+      TRACTS=list.map(t=>({key:t.key,he:t.he,en:t.en,seder:t.seder,base:t.key+"/",db:t.key==="shabbat"?"talmud":"talmud-"+t.key,ls:t.key==="shabbat"?"":t.key+"-"}));
+      TR=TRACTS.find(t=>t.key===TR.key)||TRACTS[0];
+    }catch(e){}
+  }
+  async function loadTractate(key,amud){
+    const t=TRACTS.find(x=>x.key===key)||TRACTS[0];
+    if(A){ clearTimeout(saveT); try{ await flush(); }catch(e){} }
+    TR=t; lsSet("tr",t.key); fillTrSel();
+    A=null; Z=null; RZ=null; C=null; SG=null; dbBase=null; portion=null; BITE=null; flow.classList.remove("biteon"); current=-1; toks.clear();
+    closePanel();
+    flow.innerHTML='<div class="status">טוען את מסכת '+t.he+'…</div>';
+    try{
+      const [d,sg]=await Promise.all([
+        fetch(t.base+"data.json").then(r=>{ if(!r.ok) throw 0; return r.json(); }),
+        fetch(t.base+"sugyot.json").then(r=>{ if(!r.ok) throw 0; return r.json(); }),
+        fetch(t.base+"refs.json").then(r=>r.ok?r.json():null).catch(()=>null).then(x=>{ REFS=x; }),
+        fontLoads(fontKey), stzOn?loadStz():rashiOn?loadRashi():null, rashiOn&&rscript?rashiFace():null]);
+      if(TR!==t) return;
+      A=d.amudim; SG=sg; first=A.findIndex(x=>x&&x.length);
+      buildModel(); loadLocal(); notePlanTr(); loadNotes(); BM=curBM();
+      const opts=[]; for(let i=first;i<A.length;i++) if(A[i]) opts.push('<option value="'+i+'">'+short(i)+'</option>');
+      $("dafSel").innerHTML=opts.join("");
+      let s=amud; if(s==null){ const v=lsGetT("amud",null); if(v!=null) s=v; } if(s==null||!A[s]) s=first;
+      layout(s); refreshBadge();
+      storeP=initStore();
+    }catch(e){ flow.innerHTML='<div class="status">לא הצלחתי לטעון את הטקסט. רענן את העמוד ונסה שוב.</div>'; }
+  }
+  $("trSel").onchange=e=>{ e.target.blur(); loadTractate(e.target.value,null); };
+  window.addEventListener("hashchange",()=>{ const x=parseHashFull(); if(!x) return;
+    if(x.tr!==TR.key) loadTractate(x.tr,x.a); });
+  if(window.BABLI_WEB&&window.BABLI_WEB.init) window.BABLI_WEB.init({h,FONTS,setFont,fontKey:()=>fontKey,relayout,toast,
+    reinit:()=>{ prefsDone=false; if(A) storeP=initStore(); }, openBite:()=>{ if(A) jumpToday(); }});
+  loadTractList().then(()=>{ const hx=parseHashFull(); loadTractate(hx?hx.tr:lsGet("tr","shabbat"),hx?hx.a:null); });
+})();
+</script>
+</body>
+</html>
