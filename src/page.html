@@ -117,7 +117,9 @@ button:disabled{opacity:.4;cursor:default}
 .bx{cursor:pointer;color:var(--muted);padding:0 .3em}
 .recap{display:block;font-family:var(--ui);font-size:.68em;line-height:1.5;color:var(--ink);background:var(--soft);border-radius:8px;padding:.45em .7em;margin-bottom:.5em;white-space:pre-wrap}
 .recap b{color:var(--accent)}
-.bdone-btn{display:block;width:max-content;margin-top:.5em;font-family:var(--ui);font-size:.7em;font-weight:700;color:var(--paper);background:var(--ok);border-radius:8px;padding:.35em .9em;cursor:pointer}
+.bbtns{display:flex;gap:.5em;flex-wrap:wrap;margin-top:.5em}
+.bcont-btn{display:block;width:max-content;font-family:var(--ui);font-size:.7em;font-weight:700;color:var(--ok);border:1.5px solid var(--ok);border-radius:8px;padding:.3em .9em;cursor:pointer}
+.bdone-btn{display:block;width:max-content;font-family:var(--ui);font-size:.7em;font-weight:700;color:var(--paper);background:var(--ok);border-radius:8px;padding:.35em .9em;cursor:pointer}
 .spk{position:absolute;z-index:3;font-size:18px;pointer-events:none;animation:spk .95s ease-out forwards}
 .win{border-radius:12px;background:color-mix(in srgb,var(--ok) 14%,transparent);padding:14px;text-align:center;animation:pop .45s ease-out}
 .win .wt{font-size:1.15rem;font-weight:700;color:var(--ok)}
@@ -363,7 +365,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
         const s=lastSummary();
         pre='<span class="btag">✦ ביס אחד · '+fmtN(BITE.w)+' מילים<span class="bx" role="button" aria-label="סגירת הביס">✕</span></span>'
           +(s?'<span class="recap"><b>קודם למדת:</b> '+esc(s.x)+'</span>':"")+pre; }
-      if(fi===BITE.to-1&&w1>=words.length){ el.classList.add("blast"); post='<span class="bdone-btn" role="button">✓ סיימתי</span>'; }
+      if(fi===BITE.to-1&&w1>=words.length){ el.classList.add("blast"); post='<span class="bbtns"><span class="bdone-btn" role="button">✓ סיימתי</span><span class="bcont-btn" role="button">בוא נמשיך ←</span></span>'; }
     }
     el.innerHTML=pre+slice(words,start,w1,A[a][u][2],{a,u})+post;
     return el;
@@ -517,6 +519,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   const wordOf=t=>{ const w=t.closest&&t.closest(".w,.bg"), p=w&&w.closest(".u[data-f]"); if(!w||!p) return null; const f=F[+p.dataset.f]; return {a:f.a,u:f.u,g:+w.dataset.g}; };
   flow.addEventListener("click",e=>{
     if(e.target.closest&&e.target.closest(".bdone-btn")){ finishBite(); return; }
+    if(e.target.closest&&e.target.closest(".bcont-btn")){ finishBite(true); return; }
     if(e.target.closest&&e.target.closest(".bx")){ endBite(); keepPlace(); return; }
     const r=e.target.closest&&e.target.closest(".ref");
     if(r){ openQuote(+r.dataset.q); return; }
@@ -646,10 +649,17 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(b==null) for(const t of TRACTS){ if(!t.ls) continue; const x=lsGet(t.ls+"bm",null); if(x&&typeof x==="object"){ b={...x,tr:t.key}; break; } }
     return b&&typeof b==="object"?b:null; }
   const curBM=()=>{ const b=getBMG(); return b&&b.tr===TR.key?b:null; };
-  function setBM(a,u,g){ lsSet("bm",a==null?"":{tr:TR.key,a,u,g}); BM=curBM(); }
+  function setBM(a,u,g){ lsSet("bm",a==null?"":{tr:TR.key,a,u,g}); BM=curBM();
+    if(a!=null) advanceTo(flatOf(a,u)); }
+  // reading progress jumps to the start of the line where I stopped (only forward, only in the plan's tractate)
+  function advanceTo(f){
+    if(!ST.plan||f==null||f<=ST.pos) return;
+    const p=todayPortion(), wasDone=dayDone(), w=wordsBetween(ST.pos,f);
+    ST.pos=f; logDay().w+=w; if(!wasDone&&dayDone()) logDay().done=1;
+    save(); endBite(); refreshBadge(); }
   function bmButton(a,u,g){
     return isBM(a,u,g)?h("button",{onclick:()=>{ setBM(null); closePanel(); keepPlace(); }},"הסרת הסימון")
-      :h("button",{onclick:()=>{ setBM(a,u,g); closePanel(); keepPlace(); toast("סומן: עצרת כאן. הכפתור עם הסימנייה בסרגל יחזיר אותך לכאן."); }},"עצרתי כאן");
+      :h("button",{onclick:()=>{ setBM(a,u,g); closePanel(); keepPlace(); toast(ST.plan?"סומן: עצרת כאן. הביס הבא יתחיל מכאן ("+pctToday()+"% מהיום).":"סומן: עצרת כאן. הכפתור עם הסימנייה בסרגל יחזיר אותך לכאן."); }},"עצרתי כאן");
   }
   async function goBM(){
     const b=getBMG();
@@ -848,7 +858,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       s.style.setProperty("--dx",Math.round(Math.cos(ang)*48)+"px"); s.style.setProperty("--dy",Math.round(Math.sin(ang)*36)+"px");
       s.style.color=i%2?"var(--gold)":"var(--ok)"; el.append(s); setTimeout(()=>s.remove(),1000); } }
   let askSum=lsGet("askSum",true)!==false;
-  function finishBite(){
+  function finishBite(cont){
     if(!BITE) return;
     const b=BITE, p=todayPortion(), wasDone=dayDone();
     ST.pos=Math.max(ST.pos,b.to); logDay().w+=b.w;
@@ -858,6 +868,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     flow.querySelectorAll(".u.bite").forEach(e=>e.classList.add("bdone"));
     if(last){ sparkle(last); if(nowDone) setTimeout(()=>sparkle(last),350); }
     try{ if(navigator.vibrate) navigator.vibrate(nowDone?[40,60,40]:30); }catch(e){}
+    if(cont&&!nowDone){ setTimeout(()=>{ showBite(); toast("✓ ביס הושלם · היום: "+pctToday()+"%",null,null,2200); },reduce?0:450); return; }
     setTimeout(()=>renderBiteDone(b,nowDone),reduce?0:550);
   }
   function renderBiteDone(b,nowDone){
