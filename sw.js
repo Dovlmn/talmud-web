@@ -1,7 +1,7 @@
 // בבלי: the app works offline for whatever was opened before.
 // Pages and code: network first (updates arrive at once), cache when offline.
 // Text files of the tractates: from the cache at once, refreshed in the background.
-const C = "babli-v1";
+const C = "babli-v2";
 self.addEventListener("install", e => { self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(self.clients.claim()); });
 self.addEventListener("fetch", e => {
@@ -17,7 +17,8 @@ self.addEventListener("fetch", e => {
       return hit || net;
     }));
   } else if (same) {
-    e.respondWith(fetch(r).then(res => { if (res.ok) caches.open(C).then(c => c.put(r, res.clone())); return res; })
+    // ask the server each time whether the page or code changed (a quick check), so updates arrive at once
+    e.respondWith(fetch(r.url, { cache: "no-cache", credentials: "same-origin" }).then(res => { if (res.ok) caches.open(C).then(c => c.put(r, res.clone())); return res; })
       .catch(() => caches.match(r).then(x => x || caches.match("./"))));
   }
 });
