@@ -19,7 +19,7 @@
         const changed = (u && u.uid) !== (user && user.uid);
         user = u || null; readyRes();
         if (firstAuth) { firstAuth = false; } else if (changed && ctx) ctx.reinit();
-        if (user) { loadMyFonts(); setupPush(); } refreshAccount();
+        if (user) { loadMyFonts(); setupPush(); setTimeout(autoSync, 4000); } refreshAccount();
       });
     } catch (e) { console.warn(e); readyRes(); }
   } else readyRes();
@@ -129,6 +129,26 @@
     for (const t of await tracts()) { const a = lsJ(t.ls + "amud", null); if (a !== null) v["amud:" + t.key] = a; }
     await fdb.doc(base() + "prefs").set({ v, m: Date.now() }); n++;
     return n;
+  }
+
+  // on every start with an account: if this device has a plan and the account has none, send everything up;
+  // if the account cannot be written, say why once
+  let autoDone = false;
+  async function autoSync() {
+    if (autoDone || !user || !fdb || !ctx) return; autoDone = true;
+    try {
+      await fdb.doc(base() + "ping").set({ t: Date.now() });
+      const tl = await tracts();
+      const localPlan = tl.some(t => { const s = lsJ(t.ls + "st", null); return s && s.plan; });
+      if (!localPlan) return;
+      const pr = await fdb.doc(base() + "prefs").get({ source: "server" });
+      const v = (pr.exists && pr.data().v) || {};
+      const t = v.plantr && tl.find(x => x.key === v.plantr);
+      const remotePlan = t && (await fdb.doc(base() + t.db).get({ source: "server" })).data();
+      if (remotePlan && remotePlan.plan) return;
+      await pushAll();
+      ctx.reinit();
+    } catch (e) { autoDone = false; try { ctx.toast(syncErr(e), null, null, 9000); } catch (x) {} }
   }
 
   /* ---------- a font of your own ---------- */
