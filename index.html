@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261122111356";</script>
+<script>window.BABLI_BUILD="20261122114456";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -886,6 +886,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   }
   function lastSummary(){ const s=ST.sums||[]; return s.length?s[s.length-1]:null; }
   function showBite(){
+    // the mark "עצרתי כאן" ahead of the reading (also one set before this rule, or on another device) moves the start to it
+    const m=curBM(); if(m) advanceTo(flatOf(m.a,m.u),m.g);
     const b=nextBite();
     if(!b){ toast("סיימת את המסכת · הדרן עלך מסכת "+TR.he,"עריכת התוכנית",openPlan,7000); return; }
     BITE=b; flow.classList.add("biteon");

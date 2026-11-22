@@ -859,6 +859,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   }
   function lastSummary(){ const s=ST.sums||[]; return s.length?s[s.length-1]:null; }
   function showBite(){
+    // the mark "עצרתי כאן" ahead of the reading (also one set before this rule, or on another device) moves the start to it
+    const m=curBM(); if(m) advanceTo(flatOf(m.a,m.u),m.g);
     const b=nextBite();
     if(!b){ toast("סיימת את המסכת · הדרן עלך מסכת "+TR.he,"עריכת התוכנית",openPlan,7000); return; }
     BITE=b; flow.classList.add("biteon");
