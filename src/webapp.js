@@ -127,7 +127,8 @@
     const v = {};
     for (const k of ["px", "lh", "font", "stz", "rashi", "rscript", "rw", "plantr", "bm", "askSum", "justify", "refs", "niqqud", "tr"]) { const x = lsJ(k, null); if (x !== null) v[k] = x; }
     for (const t of await tracts()) { const a = lsJ(t.ls + "amud", null); if (a !== null) v["amud:" + t.key] = a; }
-    await fdb.doc(base() + "prefs").set({ v, m: Date.now() }); n++;
+    const now = Date.now(), t = {}; for (const k of Object.keys(v)) t[k] = now;
+    await fdb.doc(base() + "prefs").set({ v, t, m: now }); n++;
     return n;
   }
 

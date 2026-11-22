@@ -257,7 +257,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   let niqqud=true; const NQ=/[\u0591-\u05BD\u05BF-\u05C2\u05C4-\u05C7]/g; const nq=s=>niqqud?s:s.replace(NQ,"");
   const lsGet=(k,d)=>{ try{ const v=localStorage.getItem(LS(k)); return v==null?d:JSON.parse(v); }catch(e){ return d; } };
   const PREFK=["px","lh","font","stz","rashi","rscript","rw","plantr","bm","askSum","justify","refs","niqqud","tr"];
-  const lsSet=(k,v)=>{ try{ localStorage.setItem(LS(k),JSON.stringify(v)); }catch(e){} if(PREFK.includes(k)||/amud$/.test(k)) prefsDirty(); };
+  const lsSet=(k,v)=>{ try{ localStorage.setItem(LS(k),JSON.stringify(v)); }catch(e){} if(PREFK.includes(k)||/amud$/.test(k)) prefsDirty(k); };
   const lsGetT=(k,d)=>lsGet(TR.ls+k,d), lsSetT=(k,v)=>lsSet(TR.ls+k,v);
 
   let REFS=null;
@@ -770,32 +770,49 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   }
 
   /* ---------- display settings and reading place, kept in the account as well (some app views do not keep browser storage) ---------- */
+  // Each setting carries its own time, so two devices never wipe each other's settings: per setting, the newer wins.
   var prefsRef=null, prefsT=null, applyingPrefs=false, prefsDone=false;
-  function prefsDirty(){ if(applyingPrefs) return; try{ localStorage.setItem(LS("prefs-m"),JSON.stringify(Date.now())); }catch(e){} clearTimeout(prefsT); prefsT=setTimeout(pushPrefs,1500); }
-  function pushPrefs(){ if(!prefsRef) return; const v={};
-    for(const k of PREFK){ const x=lsGet(k,null); if(x!==null) v[k]=x; }
-    for(const t of TRACTS){ const a=lsGet(t.ls+"amud",null); if(a!==null) v["amud:"+t.key]=a; }
-    prefsRef.set({v,m:lsGet("prefs-m",0)||Date.now()}).catch(()=>{}); }
-  async function syncPrefs(){
-    if(!prefsRef||prefsDone) return; prefsDone=true;
-    try{ const s=await prefsRef.get(), lm=lsGet("prefs-m",0);
-      if(s.exists){ const d=s.data()||{}; if((d.m||0)>lm&&d.v){ applyPrefs(d.v,d.m); return; } }
-      pushPrefs();
+  function prefKeyOf(k){ if(PREFK.includes(k)) return k; const t=TRACTS.find(t=>t.ls+"amud"===k); return t?"amud:"+t.key:null; }
+  function prefsDirty(k){ if(applyingPrefs) return; const pk=prefKeyOf(k); if(!pk) return;
+    const t=lsGet("prefs-t",{}); t[pk]=Date.now(); try{ localStorage.setItem(LS("prefs-t"),JSON.stringify(t)); }catch(e){}
+    clearTimeout(prefsT); prefsT=setTimeout(()=>mergePrefs(false),1500); }
+  function localPrefs(){ const v={}; for(const k of PREFK){ const x=lsGet(k,null); if(x!==null) v[k]=x; }
+    for(const t of TRACTS){ const a=lsGet(t.ls+"amud",null); if(a!==null) v["amud:"+t.key]=a; } return v; }
+  async function mergePrefs(start){
+    if(!prefsRef) return;
+    try{
+      const s=await prefsRef.get(), d=s.exists?(s.data()||{}):{}, rv=d.v||{}, rt={...(d.t||{})};
+      if(!d.t&&d.m) for(const k of Object.keys(rv)) rt[k]=d.m;          // older records: one time for all
+      const lt=lsGet("prefs-t",{}), lv=localPrefs(), take={}; let push=false;
+      // a device joining the account for the first time takes the account's settings
+      const first=!lsGet("prefs-synced",false)&&s.exists;
+      for(const k of new Set([...Object.keys(rv),...Object.keys(lv)])){
+        const r=rt[k]||0, l=first&&(k in rv)?0:(lt[k]||0);
+        if((k in rv)&&r>l){ take[k]=rv[k]; lt[k]=r; }
+        else if((k in lv)&&(!(k in rv)||l>r||JSON.stringify(lv[k])!==JSON.stringify(rv[k])&&l>=r)) push=true;
+      }
+      if(Object.keys(take).length){ try{ localStorage.setItem(LS("prefs-t"),JSON.stringify(lt)); }catch(e){} applyPrefs(take,start); }
+      if(push){ const v=localPrefs(), t={}; for(const k of Object.keys(v)) t[k]=Math.max(lt[k]||0,rt[k]||0,1); await prefsRef.set({v,t,m:Date.now()}); }
+      lsSet("prefs-synced",true);
     }catch(e){} }
-  function applyPrefs(v,m){
+  async function syncPrefs(){ if(!prefsRef||prefsDone) return; prefsDone=true; await mergePrefs(true); }
+  function applyPrefs(v,start){
     applyingPrefs=true;
     try{
-      for(const [k,x] of Object.entries(v)) if(k.startsWith("amud:")){ const t=TRACTS.find(t=>t.key===k.slice(5)); if(t) lsSet(t.ls+"amud",x); }
-      if(v.bm!==undefined) lsSet("bm",v.bm);
+      for(const [k,x] of Object.entries(v)){
+        if(k.startsWith("amud:")){ const t=TRACTS.find(t=>t.key===k.slice(5)); if(t) lsSet(t.ls+"amud",x); }
+        else if(PREFK.includes(k)) lsSet(k,x); }
       BM=curBM();
-      if(v.px!=null) setSize(v.px); if(v.lh!=null) setLine(v.lh); if(v.font) setFont(v.font);
-      if(v.justify!=null) setJustify(!!v.justify); if(v.refs!=null) setRefs(v.refs!==false); if(v.niqqud!=null) setNiqqud(v.niqqud!==false);
-      setStz(!!v.stz); setRashi(!!v.rashi&&!v.stz); if(v.rw!=null){ rw=+v.rw||2; lsSet("rw",rw); } if(v.rscript!=null) setRscript(v.rscript!==false);
-      try{ localStorage.setItem(LS("prefs-m"),JSON.stringify(m)); }catch(e){}
+      if("px" in v) setSize(v.px); if("lh" in v) setLine(v.lh); if(v.font) setFont(v.font);
+      if("justify" in v) setJustify(!!v.justify); if("refs" in v) setRefs(v.refs!==false); if("niqqud" in v) setNiqqud(v.niqqud!==false);
+      if("stz" in v||"rashi" in v){ const sz=!!lsGet("stz",false); setStz(sz); setRashi(!!lsGet("rashi",false)&&!sz); }
+      if("rw" in v) rw=+v.rw||2; if("rscript" in v) setRscript(v.rscript!==false);
     }finally{ applyingPrefs=false; }
-    if(v.tr&&v.tr!==TR.key&&TRACTS.find(t=>t.key===v.tr)){ loadTractate(v.tr,v["amud:"+v.tr]); return; }
-    (stzOn?loadStz():rashiOn?loadRashi():Promise.resolve()).then(()=>fontLoads(fontKey)).then(()=>{ const am=v["amud:"+TR.key]; if(A&&am!=null&&A[am]) layout(am); else relayout(); });
+    if(start&&v.tr&&v.tr!==TR.key&&TRACTS.find(t=>t.key===v.tr)){ loadTractate(v.tr,v["amud:"+v.tr]); return; }
+    (stzOn?loadStz():rashiOn?loadRashi():Promise.resolve()).then(()=>fontLoads(fontKey)).then(()=>{ const am=v["amud:"+TR.key]; if(start&&A&&am!=null&&A[am]) layout(am); else relayout(); });
   }
+  // coming back to the app: pick up what other devices did meanwhile
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&dbBase&&A){ mergePrefs(false); storeP=initStore(); } });
 
   const today=()=>dayNum();
   /* ---------- daily reading: a fixed pace of 3 dapim a day, counted in words (the tractate's average daf × 3),
@@ -1108,7 +1125,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     for(const [k,x] of Object.entries(o.p||{})){
       if(k.startsWith("amud:")){ const t=TRACTS.find(t=>t.key===k.slice(5)); if(t) lsSet(t.ls+"amud",x); }
       else if(PREFK.includes(k)) lsSet(k,x); }
-    try{ localStorage.setItem(LS("prefs-m"),JSON.stringify(now)); }catch(e){}
+    { const t=lsGet("prefs-t",{}); for(const k of Object.keys(o.p||{})) t[k]=now; try{ localStorage.setItem(LS("prefs-t"),JSON.stringify(t)); }catch(e){} }
   }
   function transferBlock(){
     const out=h("div",{class:"block"},h("h3",{},"העברת נתונים"),
