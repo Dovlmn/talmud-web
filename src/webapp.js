@@ -56,9 +56,13 @@
     accBox = box;
     if (!auth) { box.append(h("div", { class: "note" }, "הסנכרון עוד לא הוגדר. הכול נשמר במכשיר הזה בלבד.")); return box; }
     if (user) {
-      box.append(h("div", {}, "מחובר כ־" + (user.email || "")),
-        h("div", { class: "note" }, "התוכנית, ההערות, הסימון וההגדרות מסונכרנים בין המכשירים שלך."),
-        h("div", { class: "row" }, h("button", { onclick: () => auth.signOut() }, "יציאה")));
+      const st = h("div", { class: "note", role: "status" }, "בודק את החיבור לחשבון…");
+      const msg = h("div", { class: "note", role: "status" });
+      box.append(h("div", {}, "מחובר כ־" + (user.email || "")), st,
+        h("div", { class: "row" },
+          h("button", { onclick: async () => { msg.textContent = "מעלה…"; try { const n = await pushAll(); msg.textContent = "הועלו לחשבון: " + n + ". במכשיר האחר: לסגור ולפתוח."; checkAccount(st); } catch (e) { msg.textContent = syncErr(e); } } }, "העלאת הנתונים מהמכשיר הזה לחשבון"),
+          h("button", { class: "ghost", onclick: () => auth.signOut() }, "יציאה")), msg);
+      checkAccount(st);
       return box;
     }
     const em = h("input", { type: "email", dir: "ltr", placeholder: "name@example.com", autocomplete: "email" });
@@ -77,6 +81,54 @@
         h("button", { class: "ghost", onclick: go(a => auth.sendPasswordResetEmail(a).then(() => { msg.textContent = "נשלח מייל לאיפוס הסיסמה."; })) }, "שכחתי סיסמה")),
       msg);
     return box;
+  }
+
+  /* ---------- what the account holds, and pushing this device's records up to it ---------- */
+  function syncErr(e) {
+    const c = (e && e.code) || "";
+    if (/permission-denied/.test(c)) return "✗ השרת לא מרשה לשמור. צריך לפרסם את כללי האבטחה ב־Firebase (Firestore ← Rules ← Publish).";
+    if (/not-found|failed-precondition/.test(c) || /does not exist/i.test(e && e.message || "")) return "✗ מסד הנתונים לא נמצא. צריך ליצור אותו ב־Firebase (Firestore Database ← Create database).";
+    if (/unavailable/.test(c)) return "✗ אין חיבור לשרת כרגע.";
+    return "✗ שגיאה: " + (c || (e && e.message) || "לא ידועה");
+  }
+  const LSK = k => "sh2-" + k;
+  const lsJ = (k, d) => { try { const v = localStorage.getItem(LSK(k)); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+  let TL = null;
+  const tracts = async () => TL || (TL = (await (await fetch("tracts.json")).json()).map(t => ({ key: t.key, he: t.he, ls: t.key === "shabbat" ? "" : t.key + "-", db: t.key === "shabbat" ? "talmud" : "talmud-" + t.key })));
+  const base = () => "data/users/" + user.uid + "/";
+  async function checkAccount(el) {
+    try {
+      await fdb.doc(base() + "ping").set({ t: Date.now() });
+      const pr = await fdb.doc(base() + "prefs").get({ source: "server" });
+      const v = (pr.exists && pr.data().v) || {};
+      let txt = "✓ מחובר לשרת, השמירה פועלת.";
+      if (v.plantr) {
+        const t = (await tracts()).find(x => x.key === v.plantr);
+        const d = t && await fdb.doc(base() + t.db).get({ source: "server" });
+        const nn = t ? (await fdb.doc(base() + t.db).collection("notes").get({ source: "server" })).size : 0;
+        txt += " בחשבון: " + (d && d.exists && d.data().plan ? "תוכנית במסכת " + t.he : "אין תוכנית") + (nn ? " · הערות ב־" + nn + " עמודים" : "") + ".";
+      } else txt += " בחשבון עוד אין תוכנית.";
+      el.textContent = txt;
+    } catch (e) { el.textContent = syncErr(e); }
+  }
+  // everything this device keeps locally goes up to the account (used once, from the device that has the records)
+  async function pushAll() {
+    let n = 0;
+    for (const t of await tracts()) {
+      const st = lsJ(t.ls + "st", null), notes = lsJ(t.ls + "notes", {}), nm = lsJ(t.ls + "notes-m", {});
+      if (st && (st.plan || st.pos || Object.keys(st.log || {}).length)) {
+        await fdb.doc(base() + t.db).set({ plan: st.plan || null, pos: st.pos || 0, day: st.day || null, sums: (st.sums || []).slice(-200), log: st.log || {}, v: 4, m: Date.now() });
+        n++;
+      }
+      const byA = {};
+      for (const [k, arr] of Object.entries(notes || {})) { if (!arr || !arr.length) continue; const [a, u, g] = k.split(":"); (byA[a] = byA[a] || {})[u + ":" + g] = arr; }
+      for (const [a, items] of Object.entries(byA)) { await fdb.doc(base() + t.db).collection("notes").doc("a" + a).set({ items, m: Math.max(nm[a] || 0, Date.now()) }); n++; }
+    }
+    const v = {};
+    for (const k of ["px", "lh", "font", "stz", "rashi", "rscript", "rw", "plantr", "bm", "askSum", "justify", "refs", "niqqud", "tr"]) { const x = lsJ(k, null); if (x !== null) v[k] = x; }
+    for (const t of await tracts()) { const a = lsJ(t.ls + "amud", null); if (a !== null) v["amud:" + t.key] = a; }
+    await fdb.doc(base() + "prefs").set({ v, m: Date.now() }); n++;
+    return n;
   }
 
   /* ---------- a font of your own ---------- */
