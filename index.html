@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261122174152";</script>
+<script>window.BABLI_BUILD="20261122175430";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -381,8 +381,9 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       if(g&&g.s===fi) el.classList.add("ss");
       if(u===0) pre+='<span class="dm">'+amudName(a)+"</span>";
       const fw=plain(words[0]||"");
-      if(kind==="m"&&fw.startsWith("מתני")){ pre+='<span class="lbl">מתני׳</span>'; start=1; }
-      if(kind==="g"&&fw.startsWith("גמ")){ pre+='<span class="lbl">גמ׳</span>'; start=1; }
+      const lw=fw.replace(/^[\[(]+|[\])]+$/g,"").replace(/[,:]+$/,"");
+      if(kind==="m"&&/^מתני['׳]$/.test(lw)){ pre+='<span class="lbl">מתני׳</span>'; start=1; }
+      if(kind==="g"&&/^גמ['׳]$/.test(lw)){ pre+='<span class="lbl">גמ׳</span>'; start=1; }
     } else el.classList.add("cont");
     if(w1<words.length) el.classList.add("brk");
     let post="";
