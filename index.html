@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261122173233";</script>
+<script>window.BABLI_BUILD="20261122174152";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -390,7 +390,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(BITE&&fi>=BITE.from&&fi<BITE.to&&!(fi===BITE.from&&w0<bft)){
       el.classList.add("bite");
       if(fi===BITE.from&&w0===bft){ el.classList.add("bfirst");
-        const s=lastSummary();
+        // what I wrote after the previous bite, only when this bite follows it directly
+        const s0=lastSummary(), s=s0&&s0.t===BITE.from&&!BITE.fromG?s0:null;
         pre='<span class="btag"><span>✦ '+biteHead()+'</span><span class="bx" role="button" aria-label="סגירת הביס">✕</span></span>'
           +(s?'<span class="recap"><b>קודם למדת:</b> '+esc(s.x)+'</span>':"")+pre; }
       if(fi===BITE.to-1&&w1>=words.length){ el.classList.add("blast"); post='<span class="bbtns"><span class="bdone-btn" role="button">✓ סיימתי</span><span class="bcont-btn" role="button">בוא נמשיך ←</span></span>'; }
