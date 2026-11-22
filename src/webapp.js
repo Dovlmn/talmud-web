@@ -246,6 +246,7 @@
   /* ---------- reminders (מצב קרצייה): this phone receives them; the hourly job decides when ---------- */
   const Push = () => isNative() && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
   let pushReady = false, notifyCfg = { on: true, from: 7, to: 22 };
+  try { const x = JSON.parse(localStorage.getItem("babli-notify") || "null"); if (x) notifyCfg = { ...notifyCfg, ...x }; } catch (e) {}
   const notifyDoc = () => fdb.doc("data/users/" + user.uid + "/notify");
   function openBiteSoon() {
     let n = 0; const t = setInterval(() => { n++; try { ctx && ctx.openBite(); } catch (e) {} if (document.querySelector(".u.bite") || n > 40) clearInterval(t); }, 500);
@@ -268,9 +269,8 @@
   function notifyBlock() {
     const h = ctx.h;
     const box = h("div", { class: "block" }, h("h3", {}, "תזכורות (מצב קרצייה)"));
-    if (!Push()) { box.append(h("div", { class: "note" }, "התזכורות מגיעות לאפליקציית האנדרואיד, כשאתה מחובר לחשבון.")); return box; }
-    if (!user) { box.append(h("div", { class: "note" }, "התחבר לחשבון כדי לקבל תזכורות.")); return box; }
-    const save = () => notifyDoc().set({ on: notifyCfg.on !== false, from: notifyCfg.from, to: notifyCfg.to }, { merge: true }).catch(() => {});
+    if (!LN()) { box.append(h("div", { class: "note" }, "התזכורות מגיעות לאפליקציית האנדרואיד.")); return box; }
+    const save = () => { try { localStorage.setItem("babli-notify", JSON.stringify(notifyCfg)); } catch (e) {} if (user && fdb) notifyDoc().set({ on: notifyCfg.on !== false, from: notifyCfg.from, to: notifyCfg.to }, { merge: true }).catch(() => {}); progress(); };
     const hours = sel => { const o = []; for (let i = 5; i <= 24; i++) o.push(h("option", { value: String(i), selected: i === sel }, String(i).padStart(2, "0") + ":00")); return o; };
     const fr = h("select", {}, hours(notifyCfg.from)), to = h("select", {}, hours(notifyCfg.to));
     fr.onchange = () => { notifyCfg.from = +fr.value; save(); }; to.onchange = () => { notifyCfg.to = +to.value; save(); };
@@ -283,18 +283,66 @@
   /* ---------- the home-screen widget (Android): today's plant, the percent and the streak ---------- */
   const Widget = () => isNative() && window.Capacitor.Plugins && window.Capacitor.Plugins.PlantWidget;
   let wLast = "";
+  let schedT = null;
   function progress() {
-    const W = Widget(); if (!W || !ctx) return;
+    if (!ctx) return;
     const s = ctx.status(); if (!s.plan) return;          // only the tractate that holds the plan knows today's reading
+    clearTimeout(schedT); schedT = setTimeout(() => scheduleLocal(s), 2000);
+    const W = Widget(); if (!W) return;
     const d = new Date(), day = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     const key = [day, s.pct, s.streak].join("|"); if (key === wLast) return; wLast = key;
     W.update({ day, pct: s.pct, streak: s.streak, plan: true }).catch(() => {});
+  }
+
+  /* ---------- reminders scheduled on the phone itself (reliable, no server): every two hours inside the chosen hours,
+     from two hours after the last time the app was used; none once today is done, none on Shabbat and Yom Tov ---------- */
+  const LN = () => isNative() && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications;
+  let hebcal = null, lnReady = false;
+  async function restDay(date) {
+    if (date.getDay() === 6) return true;
+    try {
+      hebcal = hebcal || await import("https://cdn.jsdelivr.net/npm/@hebcal/core@5.8.0/+esm");
+      return (hebcal.HebrewCalendar.getHolidaysOnDate(new hebcal.HDate(date), true) || []).some(e => e.getFlags() & hebcal.flags.CHAG);
+    } catch (e) { return false; }
+  }
+  async function scheduleLocal(s) {
+    const L = LN(); if (!L || !ctx) return;
+    try {
+      if (!lnReady) {
+        lnReady = true;
+        L.addListener("localNotificationActionPerformed", () => openBiteSoon());
+        try { await L.createChannel({ id: "bites", name: "ביסים", description: "תזכורת לביס הבא כשקריאת היום עוד לא הושלמה", importance: 4, vibration: true }); } catch (e) {}
+        let p = await L.checkPermissions(); if (p.display !== "granted") p = await L.requestPermissions();
+      }
+      const ids = []; for (let i = 0; i < 40; i++) ids.push({ id: 900 + i });
+      try { await L.cancel({ notifications: ids }); } catch (e) {}
+      if (notifyCfg.on === false) return;
+      const from = notifyCfg.from ?? 7, to = notifyCfg.to ?? 22, now = new Date(), out = []; let id = 900;
+      for (let dd = 0; dd < 3; dd++) {
+        const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dd);
+        if (dd === 0 && s.pct >= 100) continue;
+        if (await restDay(day)) continue;
+        const eve = day.getDay() === 5 || await restDay(new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1));
+        const end = Math.min(to, eve ? 14 : 24);
+        let t = dd === 0 ? now.getTime() + 2 * 3600e3 : new Date(day.getFullYear(), day.getMonth(), day.getDate(), from).getTime();
+        for (; out.length < 36; t += 2 * 3600e3) {
+          const d = new Date(t); if (d.getDate() !== day.getDate()) break;
+          const hh = d.getHours() + d.getMinutes() / 60;
+          if (hh < from) { t = new Date(day.getFullYear(), day.getMonth(), day.getDate(), from).getTime() - 2 * 3600e3; continue; }
+          if (hh >= end) break;
+          const started = dd === 0 && s.pct > 0;
+          out.push({ id: id++, title: "בבלי", body: (started ? "התחלת היום (" + s.pct + "%). עוד ביס אחד?" : "עוד לא התחלת היום. ביס אחד קטן?") + (s.streak ? " · רצף " + s.streak : ""),
+            schedule: { at: d, allowWhileIdle: true }, channelId: "bites", smallIcon: "ic_stat_babli", extra: { bite: 1 } });
+        }
+      }
+      if (out.length) await L.schedule({ notifications: out });
+    } catch (e) { console.warn(e); }
   }
   async function launchedFromWidget() {
     const W = Widget(); if (!W) return;
     try { const r = await W.consumeLaunch(); if (r && r.bite) openBiteSoon(); } catch (e) {}
   }
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") launchedFromWidget(); });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { launchedFromWidget(); progress(); } });
 
   /* ---------- full screen in the app: the app's bar and Android's own bars step aside ---------- */
   function setFs(on) {
