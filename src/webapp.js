@@ -58,7 +58,7 @@
     if (user) {
       const st = h("div", { class: "note", role: "status" }, "בודק את החיבור לחשבון…");
       const msg = h("div", { class: "note", role: "status" });
-      box.append(h("div", {}, "מחובר כ־" + (user.email || "")), st,
+      box.append(h("div", {}, "מחובר כ־" + (user.email || "") + " · גרסה " + (window.BABLI_BUILD || "").slice(4, 12).replace(/(\d\d)(\d\d)(\d\d)(\d\d)/, "$2.$1 $3:$4")), st,
         h("div", { class: "row" },
           h("button", { onclick: async () => { msg.textContent = "מעלה…"; try { const n = await pushAll(); msg.textContent = "הועלו לחשבון: " + n + ". במכשיר האחר: לסגור ולפתוח."; checkAccount(st); } catch (e) { msg.textContent = syncErr(e); } } }, "העלאת הנתונים מהמכשיר הזה לחשבון"),
           h("button", { class: "ghost", onclick: () => auth.signOut() }, "יציאה")), msg);
@@ -330,6 +330,22 @@
     blocks() { return [accountBlock(), notifyBlock(), fontBlock()]; },
     progress
   };
+
+  /* ---------- a newer version: the app on a phone can stay open for days, so it checks when it comes back ---------- */
+  async function checkVersion() {
+    try {
+      const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" }); if (!r.ok) return;
+      const b = (await r.json()).b;
+      if (b && window.BABLI_BUILD && b !== window.BABLI_BUILD) {
+        const busy = () => !document.getElementById("scrim").hidden || document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+        if (busy()) return;
+        location.reload();
+      }
+    } catch (e) {}
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkVersion(); });
+  setInterval(checkVersion, 20 * 60 * 1000);
+  setTimeout(checkVersion, 5000);
 
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 })();

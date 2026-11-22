@@ -8,7 +8,7 @@ self.addEventListener("fetch", e => {
   const r = e.request; if (r.method !== "GET") return;
   const u = new URL(r.url);
   const same = u.origin === location.origin;
-  const isData = same && /\.json$/.test(u.pathname) && !/manifest/.test(u.pathname);
+  const isData = same && /\.json$/.test(u.pathname) && !/manifest|version/.test(u.pathname);
   const isStatic = /(^|\.)gstatic\.com$|fonts\.googleapis\.com$/.test(u.hostname) || (same && /\.(ttf|png)$/.test(u.pathname));
   if (isData || isStatic) {
     e.respondWith(caches.open(C).then(async c => {

@@ -52,7 +52,11 @@ html.chromeless #fsExit{display:block}
 </head>
 <body>
 """.replace("%s", FB)
+import time, json as _json
+build = time.strftime("%Y%m%d%H%M%S", time.gmtime())
+head = head.replace('<script src="config.js"></script>', '<script>window.BABLI_BUILD="%s";</script>\n<script src="config.js"></script>' % build)
 out = head + page.rstrip() + "\n</body>\n</html>\n"
+_json.dump({"b": build}, open(os.path.join(root, "version.json"), "w"))
 open(os.path.join(root, "index.html"), "w", encoding="utf-8").write(out)
 import shutil
 shutil.copy(os.path.join(here, "webapp.js"), os.path.join(root, "webapp.js"))
