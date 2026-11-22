@@ -117,7 +117,7 @@
     for (const t of await tracts()) {
       const st = lsJ(t.ls + "st", null), notes = lsJ(t.ls + "notes", {}), nm = lsJ(t.ls + "notes-m", {});
       if (st && (st.plan || st.pos || Object.keys(st.log || {}).length)) {
-        await fdb.doc(base() + t.db).set({ plan: st.plan || null, pos: st.pos || 0, day: st.day || null, sums: (st.sums || []).slice(-200), log: st.log || {}, v: 4, m: Date.now() });
+        await fdb.doc(base() + t.db).set({ plan: st.plan || null, pos: st.pos || 0, posG: st.posG || 0, day: st.day || null, sums: (st.sums || []).slice(-200), log: st.log || {}, v: 4, m: Date.now() });
         n++;
       }
       const byA = {};

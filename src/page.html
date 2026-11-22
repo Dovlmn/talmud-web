@@ -359,9 +359,10 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     } else el.classList.add("cont");
     if(w1<words.length) el.classList.add("brk");
     let post="";
-    if(BITE&&fi>=BITE.from&&fi<BITE.to){
+    const bft=BITE&&fi===BITE.from&&BITE.fromG?gToTok(a,u,BITE.fromG):0;
+    if(BITE&&fi>=BITE.from&&fi<BITE.to&&!(fi===BITE.from&&w0<bft)){
       el.classList.add("bite");
-      if(fi===BITE.from&&w0===0){ el.classList.add("bfirst");
+      if(fi===BITE.from&&w0===bft){ el.classList.add("bfirst");
         const s=lastSummary();
         pre='<span class="btag">✦ ביס אחד · '+fmtN(BITE.w)+' מילים<span class="bx" role="button" aria-label="סגירת הביס">✕</span></span>'
           +(s?'<span class="recap"><b>קודם למדת:</b> '+esc(s.x)+'</span>':"")+pre; }
@@ -391,7 +392,10 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   function fill(sheet,c,stop){
     let cur=c;
     while(cur && (stop==null || cmp(cur,stop)<0)){
-      const words=tokens(cur.a,cur.u), lim=(stop&&cur.a===stop.a&&cur.u===stop.u)?stop.w:words.length;
+      const words=tokens(cur.a,cur.u);
+      let lim=(stop&&cur.a===stop.a&&cur.u===stop.u)?stop.w:words.length;
+      // a bite that starts inside a line starts a new piece there, so its frame opens at that word
+      if(BITE&&BITE.fromG&&posFlat(cur)===BITE.from){ const bt=gToTok(cur.a,cur.u,BITE.fromG); if(cur.w<bt&&lim>bt) lim=bt; }
       const after=()=>lim<words.length?{a:cur.a,u:cur.u,w:lim}:next(cur);
       const el=unitEl(cur.a,cur.u,cur.w,lim);
       sheet.appendChild(el);
@@ -650,12 +654,13 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     return b&&typeof b==="object"?b:null; }
   const curBM=()=>{ const b=getBMG(); return b&&b.tr===TR.key?b:null; };
   function setBM(a,u,g){ lsSet("bm",a==null?"":{tr:TR.key,a,u,g}); BM=curBM();
-    if(a!=null) advanceTo(flatOf(a,u)); }
-  // reading progress jumps to the start of the line where I stopped (only forward, only in the plan's tractate)
-  function advanceTo(f){
-    if(!ST.plan||f==null||f<=ST.pos) return;
-    const p=todayPortion(), wasDone=dayDone(), w=wordsBetween(ST.pos,f);
-    ST.pos=f; logDay().w+=w; if(!wasDone&&dayDone()) logDay().done=1;
+    if(a!=null) advanceTo(flatOf(a,u),g); }
+  // reading progress jumps to the word where I stopped (only forward, only in the plan's tractate)
+  function advanceTo(f,g){
+    g=g||0; const cg=ST.posG||0;
+    if(!ST.plan||f==null||f<ST.pos||(f===ST.pos&&g<=cg)) return;
+    const wasDone=dayDone(), w=wordsBetween(ST.pos,f)-cg+g;
+    ST.pos=f; ST.posG=g; logDay().w+=Math.max(0,w); if(!wasDone&&dayDone()) logDay().done=1;
     save(); endBite(); refreshBadge(); }
   function bmButton(a,u,g){
     return isBM(a,u,g)?h("button",{onclick:()=>{ setBM(null); closePanel(); keepPlace(); }},"הסרת הסימון")
@@ -715,12 +720,12 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   // plan: {startF, startDay}; pos: flat index read up to; day: today's fixed reading {d,from,to}; log: {day:{w,done}}; sums: what I wrote after bites
   let ST={plan:null,pos:0,log:{}};
   let dbBase=null, stDirty=false, saveT=null;
-  function loadLocal(){ ST={plan:null,pos:0,log:{}}; const s=lsGetT("st",null); if(s) ST={plan:s.plan||null,pos:s.pos||0,log:s.log||{},day:s.day||null,sums:s.sums||[],m:s.m||0}; }
+  function loadLocal(){ ST={plan:null,pos:0,log:{}}; const s=lsGetT("st",null); if(s) ST={plan:s.plan||null,pos:s.pos||0,posG:s.posG||0,log:s.log||{},day:s.day||null,sums:s.sums||[],m:s.m||0}; }
   function saveLocal(){ lsSetT("st",ST); }
   function save(){ saveLocal(); stDirty=true; clearTimeout(saveT); saveT=setTimeout(flush,800); }
   async function flush(){
     if(!dbBase||!stDirty) return;
-    try{ stDirty=false; await dbBase.set({plan:ST.plan,pos:ST.pos,day:ST.day||null,sums:(ST.sums||[]).slice(-200),log:trimLog(ST.log),v:4,m:ST.m||0}); }catch(e){ stDirty=true; }
+    try{ stDirty=false; await dbBase.set({plan:ST.plan,pos:ST.pos,posG:ST.posG||0,day:ST.day||null,sums:(ST.sums||[]).slice(-200),log:trimLog(ST.log),v:4,m:ST.m||0}); }catch(e){ stDirty=true; }
   }
   function trimLog(l){ const keys=Object.keys(l).sort().slice(-120); const o={}; for(const k of keys) o[k]=l[k]; return o; }
   async function initStore(){
@@ -733,7 +738,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       const snap=await dbBase.get(); if(myTR!==TR) return;
       if(snap.exists){ const d=snap.data();
         // a plan edited later wins as a whole; otherwise the record that has read further wins
-        if(d.plan&&((d.m||0)>(ST.m||0)||(!(ST.m>(d.m||0))&&(!ST.plan||(d.pos||0)>=(ST.pos||0))))){ ST.plan=d.plan; ST.pos=d.pos||0; ST.m=d.m||0; if(d.day) ST.day=d.day; }
+        if(d.plan&&((d.m||0)>(ST.m||0)||(!(ST.m>(d.m||0))&&(!ST.plan||(d.pos||0)*1e4+(d.posG||0)>=(ST.pos||0)*1e4+(ST.posG||0))))){ ST.plan=d.plan; ST.pos=d.pos||0; ST.posG=d.posG||0; ST.m=d.m||0; if(d.day) ST.day=d.day; }
         const log={...(d.log||{})}; for(const [k,v] of Object.entries(ST.log)){ const o=log[k]||{w:0}; log[k]={w:Math.max(o.w||0,v.w||0),...((o.done||v.done)?{done:1}:{})}; } ST.log=log;
         const seen=new Set((ST.sums||[]).map(s=>s.d+":"+s.f)); for(const s of d.sums||[]) if(!seen.has(s.d+":"+s.f)) (ST.sums=ST.sums||[]).push(s);
         (ST.sums||[]).sort((x,y)=>x.d-y.d||x.f-y.f);
@@ -817,7 +822,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   const rangeTxt=p=>{ const a1=F[p.from].a, a2=F[Math.max(p.from,p.to-1)].a; return a1===a2?amudName(a1):amudName(a1)+" – "+amudName(a2); };
   function dayDone(){ const p=todayPortion(); return !p||ST.pos>=p.to; }
   function readToday(){ return dayDone(); }
-  function pctToday(){ const p=todayPortion(); if(!p||!p.w) return 100; return Math.min(100,Math.round(100*wordsBetween(p.from,Math.min(ST.pos,p.to))/p.w)); }
+  function pctToday(){ const p=todayPortion(); if(!p||!p.w) return 100; return Math.min(100,Math.round(100*(wordsBetween(p.from,Math.min(ST.pos,p.to))+(ST.pos<p.to?ST.posG||0:0))/p.w)); }
   // days in a row with today's reading done; Shabbat neither counts nor breaks
   function streak(){ let n=0, d=today(); const done=k=>(ST.log[isoDay(k)]||{}).done;
     if(!done(d)) d--;
@@ -843,19 +848,21 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   let BITE=null;   // {from,to} flat units, the bite on screen
   function nextBite(){
     const p=todayPortion(), from=ST.pos; if(from>=F.length) return null;
+    const fromG=Math.min(ST.posG||0,Math.max(0,F[from].w-1));
     const size=biteSize(), cap=p&&from<p.to?p.to:F.length;
-    let i=from, acc=0;
+    let i=from, acc=-fromG;
     while(i<cap&&acc<size){ acc+=F[i].w; i++; }
     if(i>from+1&&acc-size>size-(acc-F[i-1].w)) i--;
     // do not leave a crumb at the end of the day
     if(cap===(p&&p.to)&&i<cap&&wordsBetween(i,cap)<size*0.4) i=cap;
-    return {from,to:i,w:wordsBetween(from,i)};
+    return {from,fromG,to:i,w:Math.max(1,wordsBetween(from,i)-fromG)};
   }
   function lastSummary(){ const s=ST.sums||[]; return s.length?s[s.length-1]:null; }
   function showBite(){
     const b=nextBite();
     if(!b){ toast("סיימת את המסכת · הדרן עלך מסכת "+TR.he,"עריכת התוכנית",openPlan,7000); return; }
-    BITE=b; flow.classList.add("biteon"); readAt(b.from);
+    BITE=b; flow.classList.add("biteon");
+    const f=F[b.from]; layoutAt({a:f.a,u:f.u,w:b.fromG?gToTok(f.a,f.u,b.fromG):0});
   }
   function endBite(){ BITE=null; flow.classList.remove("biteon"); }
   async function jumpToday(){
@@ -878,7 +885,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   function finishBite(cont){
     if(!BITE) return;
     const b=BITE, p=todayPortion(), wasDone=dayDone();
-    ST.pos=Math.max(ST.pos,b.to); logDay().w+=b.w;
+    ST.pos=Math.max(ST.pos,b.to); ST.posG=0; logDay().w+=b.w;
     const nowDone=!wasDone&&dayDone(); if(nowDone) logDay().done=1;
     save(); refreshBadge();
     const last=[...flow.querySelectorAll(".u.blast")].pop();
@@ -909,7 +916,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   // finishing the whole day at once (reading straight through, without bites)
   function finishReading(){
     const p=todayPortion(); if(!p) return;
-    const w=wordsBetween(ST.pos,p.to); ST.pos=Math.max(ST.pos,p.to); logDay().w+=w; logDay().done=1; save();
+    const w=wordsBetween(ST.pos,p.to); ST.pos=Math.max(ST.pos,p.to); ST.posG=0; logDay().w+=w; logDay().done=1; save();
     portion=null; refreshBadge(); endBite(); keepPlace();
     const st=streak(); toast("✓ הקריאה של היום הושלמה"+(st?" · רצף "+st+(st===1?" יום":" ימים"):""),null,null,5000);
   }
