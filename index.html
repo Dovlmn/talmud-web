@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261123112403";</script>
+<script>window.BABLI_BUILD="20261123112508";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -224,6 +224,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     <div class="ctrls">
       <button id="todayBtn" title="מעבר לקריאה של היום">היום<span class="badge" id="badge" hidden></span></button>
       <button id="mapBtn" aria-haspopup="dialog">מפה</button>
+      <button id="cmpBtn" aria-pressed="false" title="הרבה טקסט במסך אחד, לחזרה ולכתיבת כותרות">צפוף</button>
       <button id="stzBtn" aria-pressed="false" title="ביאור הרב שטיינזלץ בתוך הטקסט">שטיינזלץ</button>
       <button id="rashiBtn" aria-pressed="false" title="פירוש רש״י בתוך הטקסט">רש״י</button>
       <button class="icon" id="bmBtn" aria-label="למילה שעצרתי בה" title="למילה שעצרתי בה"><svg viewBox="0 0 14 16" aria-hidden="true"><path d="M1 0h12v16l-6-4.5L1 16z"/></svg></button>
@@ -262,7 +263,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   const lsGetT=(k,d)=>lsGet(TR.ls+k,d), lsSetT=(k,v)=>lsSet(TR.ls+k,v);
 
   let REFS=null;
-  let A=null, Z=null, RZ=null, C=null, SG=null, stzOn=false, rashiOn=false, first=0, size=20, dense=false;
+  let A=null, Z=null, RZ=null, C=null, SG=null, stzOn=false, rashiOn=false, first=0, size=20, dense=false, compact=false;
   let N=1, H=0, colW=0, gap=0, width=0;
   let head=null, tail=null, pi=0, current=-1, animating=0;
   const toks=new Map();
@@ -318,7 +319,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   function perekOfFlat(i){ let lo=0,hi=CHF.length-1; while(lo<hi){ const m=(lo+hi+1)>>1; if(CHF[m]<=i) lo=m; else hi=m-1; } return lo; }
 
   /* ---------- reader: rendering units ---------- */
-  function text(a,u){ if(stzOn&&Z&&Z[a]&&typeof Z[a][u]==="string") return Z[a][u]; if(rashiOn&&RZ&&RZ[a]&&typeof RZ[a][u]==="string") return RZ[a][u]; return A[a][u][1]; }
+  function text(a,u){ if(compact) return A[a][u][1]; if(stzOn&&Z&&Z[a]&&typeof Z[a][u]==="string") return Z[a][u]; if(rashiOn&&RZ&&RZ[a]&&typeof RZ[a][u]==="string") return RZ[a][u]; return A[a][u][1]; }
   function tokens(a,u){ const k=a+":"+u; let t=toks.get(k); if(!t){ t=text(a,u).split(" "); toks.set(k,t); } return t; }
   const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   const PAIR={[OPEN]:CLOSE,[SO]:SC,[QO]:QC};
@@ -407,8 +408,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     const cs=getComputedStyle(flow);
     width=flow.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
     H=flow.clientHeight;
-    colW=size*15.5; gap=Math.max(dense?20:28,size*(dense?1.4:1.7));
-    N=width<640 ? 1 : Math.max(1,Math.floor((width+gap)/(colW+gap)));
+    const es=effSize(), dn=dense||compact; colW=es*(compact?12.5:15.5); gap=compact?Math.max(14,es*1.1):Math.max(dn?20:28,es*(dn?1.4:1.7));
+    N=width<640&&!compact ? 1 : Math.max(1,Math.floor((width+gap)/(colW+gap)));
   }
   function newSheet(){ const s=document.createElement("section"); s.className="sheet";
     s.style.height=H+"px"; s.style.width=width+"px"; s.style.columnCount=N; s.style.columnGap=gap+"px"; return s; }
@@ -1067,7 +1068,13 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     const L=[document.fonts.load("400 20px "+f[0]),document.fonts.load("700 20px "+f[0])]; if(f[1]) L.push(document.fonts.load("400 20px "+f[1])); return Promise.all(L).catch(()=>{}); }
   function setFont(k,relay){ const keep=!FONTS[k]&&k==="custom"; if(!FONTS[k]) k="frank"; fontKey=k; const [g,s]=FONTS[k], fb=',"Frank Ruhl Libre","Noto Serif Hebrew",Georgia,serif', r=document.documentElement.style;
     r.setProperty("--gfont",g+fb); r.setProperty("--sfont",(s||g)+fb); document.documentElement.classList.toggle("light-quotes",hasLight(k)); document.documentElement.classList.toggle("face-font",!!(FONTS[k]&&FONTS[k][4])); if(!keep) lsSet("font",k); if(relay) fontLoads(k).then(relayout); }
-  function setSize(v,relay){ size=Math.round(Math.max(10,Math.min(34,v))); document.documentElement.style.setProperty("--size",size+"px"); lsSet("px",size); if(relay) relayout(); }
+  function effSize(){ return compact?Math.max(11,Math.round(size*0.66)):size; }
+  function applyType(){ const r=document.documentElement.style, lh=LH[lhi];
+    r.setProperty("--size",effSize()+"px"); r.setProperty("--lh",String(compact?1.22:lh)); r.setProperty("--ugap",compact?".12em":(0.2+(lh-1.3)*0.75).toFixed(2)+"em"); }
+  function setSize(v,relay){ size=Math.round(Math.max(10,Math.min(34,v))); applyType(); lsSet("px",size); if(relay) relayout(); }
+  // "צפוף": a lot of text on one screen (smaller letters, tight lines, more columns, Gemara only) for review and titles
+  function setCompact(on){ compact=on; $("cmpBtn").setAttribute("aria-pressed",String(on)); flow.classList.toggle("compact",on); lsSet("compact",on); applyType(); }
+  $("cmpBtn").onclick=()=>keepPlace(()=>{ setCompact(!compact); });
   function setNiqqud(on,relay){ niqqud=on; lsSet("niqqud",on); if(relay) relayout(); }
   let showRefs=true;
   function setRefs(on,relay){ showRefs=on; flow.classList.toggle("norefs",!on); lsSet("refs",on); if(relay) relayout(); }
@@ -1083,8 +1090,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   }
   // line spacing in steps; the gap between units and between columns follows it
   const LH=[1.3,1.42,1.55,1.7,1.85,2.0]; let lhi=3;
-  function setLine(i,relay){ lhi=Math.max(0,Math.min(LH.length-1,i)); const lh=LH[lhi]; dense=lh<1.5;
-    const r=document.documentElement.style; r.setProperty("--lh",String(lh)); r.setProperty("--ugap",(0.2+(lh-1.3)*0.75).toFixed(2)+"em");
+  function setLine(i,relay){ lhi=Math.max(0,Math.min(LH.length-1,i)); const lh=LH[lhi]; dense=lh<1.5; applyType();
     lsSet("lh",lhi); if(relay) relayout(); }
   function setDense(on,relay){ setLine(on?1:3,relay); }
   function renderSettings(){
@@ -1164,7 +1170,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   }
 
   /* ---------- start ---------- */
-  setSize(lsGet("px",innerWidth<480?19:20)); { const li=lsGet("lh",null); if(li!=null) setLine(li); else setDense(!!lsGet("dense",false)); } setJustify(!!lsGet("justify",false)); setRefs(lsGet("refs",true)!==false); niqqud=lsGet("niqqud",true)!==false; setFont(fontKey);
+  setCompact(!!lsGet("compact",false)); setSize(lsGet("px",innerWidth<480?19:20)); { const li=lsGet("lh",null); if(li!=null) setLine(li); else setDense(!!lsGet("dense",false)); } setJustify(!!lsGet("justify",false)); setRefs(lsGet("refs",true)!==false); niqqud=lsGet("niqqud",true)!==false; setFont(fontKey);
   if(lsGet("stz",false)) setStz(true); else if(lsGet("rashi",false)) setRashi(true);
   setRscript(rscript);
   const SEDER={"Seder Zeraim":"סדר זרעים","Seder Moed":"סדר מועד","Seder Nashim":"סדר נשים","Seder Nezikin":"סדר נזיקין","Seder Kodashim":"סדר קדשים","Seder Tahorot":"סדר טהרות"};
