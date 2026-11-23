@@ -397,3 +397,13 @@
 
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
+
+// keep the screen on while the reader is open (browsers that support it; the Android app does this natively)
+(function () {
+  if (!("wakeLock" in navigator)) return;
+  let lock = null;
+  const get = async () => { try { if (document.visibilityState === "visible" && !lock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => { lock = null; }); } } catch (e) {} };
+  document.addEventListener("visibilitychange", get);
+  ["click", "touchstart", "keydown"].forEach(ev => document.addEventListener(ev, get, { passive: true }));
+  get();
+})();
