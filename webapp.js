@@ -359,6 +359,17 @@
     fb.hidden = false; fb.onclick = () => setFs(!document.documentElement.classList.contains("chromeless"));
     const ex = document.createElement("button"); ex.id = "fsExit"; ex.textContent = "⛶"; ex.setAttribute("aria-label", "יציאה ממסך מלא");
     ex.onclick = () => setFs(false); document.body.appendChild(ex);
+    // with Android's back button available, it leaves full screen and the round button is not needed
+    const App = window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+    if (App && App.addListener) {
+      ex.remove();
+      App.addListener("backButton", (e) => {
+        if (document.documentElement.classList.contains("chromeless")) { setFs(false); return; }
+        const sc = document.getElementById("scrim");
+        if (sc && !sc.hidden) { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); return; }
+        if (e && e.canGoBack) history.back(); else App.exitApp();
+      });
+    }
     let on = false; try { on = localStorage.getItem("babli-fs") === "1"; } catch (e) {}
     if (on) setFs(true);
   }
