@@ -401,6 +401,9 @@
 // keep the screen on while the reader is open (browsers that support it; the Android app does this natively)
 (function () {
   if (!("wakeLock" in navigator)) return;
+  // only on iPad (and Android browsers); never on computers
+  const ua = navigator.userAgent, ipad = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  if (!ipad && !/Android/.test(ua)) return;
   let lock = null;
   const get = async () => { try { if (document.visibilityState === "visible" && !lock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => { lock = null; }); } } catch (e) {} };
   document.addEventListener("visibilitychange", get);
