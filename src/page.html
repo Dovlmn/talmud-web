@@ -118,6 +118,8 @@ button:disabled{opacity:.4;cursor:default}
 .recap{display:block;font-family:var(--ui);font-size:.68em;line-height:1.5;color:var(--ink);background:var(--soft);border-radius:8px;padding:.45em .7em;margin-bottom:.5em;white-space:pre-wrap}
 .recap b{color:var(--accent)}
 .bbtns{display:flex;gap:.5em;flex-wrap:wrap;margin-top:.5em}
+.dayend{display:flex;align-items:center;gap:.6em;margin-top:.7em;font-family:var(--ui,system-ui,sans-serif);font-size:.62em;font-weight:700;color:var(--gold);letter-spacing:.02em;white-space:nowrap}
+.dayend::before,.dayend::after{content:"";flex:1;border-top:2px dotted var(--gold)}
 .bcont-btn{display:block;width:max-content;font-family:var(--ui);font-size:.7em;font-weight:700;color:var(--ok);border:1.5px solid var(--ok);border-radius:8px;padding:.3em .9em;cursor:pointer}
 .bdone-btn{display:block;width:max-content;font-family:var(--ui);font-size:.7em;font-weight:700;color:var(--paper);background:var(--ok);border-radius:8px;padding:.35em .9em;cursor:pointer}
 .spk{position:absolute;z-index:3;font-size:18px;pointer-events:none;animation:spk .95s ease-out forwards}
@@ -370,6 +372,9 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
           +(s?'<span class="recap"><b>קודם למדת:</b> '+esc(s.x)+'</span>':"")+pre; }
       if(fi===BITE.to-1&&w1>=words.length){ el.classList.add("blast"); post='<span class="bbtns"><span class="bdone-btn" role="button">✓ סיימתי</span><span class="bcont-btn" role="button">בוא נמשיך ←</span></span>'; }
     }
+    // the end of today's reading
+    const tp=ST.plan&&todayPortion();
+    if(tp&&fi===tp.to-1&&w1>=words.length) post+='<span class="dayend" aria-label="סוף ההספק היומי">◆ סוף ההספק של היום ◆</span>';
     el.innerHTML=pre+slice(words,start,w1,A[a][u][2],{a,u})+post;
     return el;
   }
