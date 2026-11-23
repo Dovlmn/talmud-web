@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261123120648";</script>
+<script>window.BABLI_BUILD="20261123145440";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -783,7 +783,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   /* ---------- learner state: the reading plan and how far it has got ---------- */
   // plan: {startF, startDay}; pos: flat index read up to; day: today's fixed reading {d,from,to}; log: {day:{w,done}}; sums: what I wrote after bites
   let ST={plan:null,pos:0,log:{}};
-  let dbBase=null, stDirty=false, saveT=null;
+  let dbBase=null, stDirty=false, saveT=null, stSynced=false;
   function loadLocal(){ ST={plan:null,pos:0,log:{}}; const s=lsGetT("st",null); if(s) ST={plan:s.plan||null,pos:s.pos||0,posG:s.posG||0,log:s.log||{},day:s.day||null,sums:s.sums||[],m:s.m||0}; }
   function saveLocal(){ lsSetT("st",ST); }
   function save(){ saveLocal(); stDirty=true; clearTimeout(saveT); saveT=setTimeout(flush,800); }
@@ -797,7 +797,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       const c=window.claude; if(!c||!c.use) return;
       const [db,user]=await Promise.all([c.use("db"),c.use("user")]); if(!db||!user) return;
       const id=await user.id(); if(!id) return;
-      const myTR=TR; dbBase=db.doc("data/users/"+id+"/"+TR.db); dbRoot={db,id};
+      const myTR=TR; stSynced=false; dbBase=db.doc("data/users/"+id+"/"+TR.db); dbRoot={db,id};
       prefsRef=db.doc("data/users/"+id+"/prefs"); syncPrefs();
       const snap=await dbBase.get(); if(myTR!==TR) return;
       if(snap.exists){ const d=snap.data();
@@ -807,16 +807,16 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
         const seen=new Set((ST.sums||[]).map(s=>s.d+":"+s.f)); for(const s of d.sums||[]) if(!seen.has(s.d+":"+s.f)) (ST.sums=ST.sums||[]).push(s);
         (ST.sums||[]).sort((x,y)=>x.d-y.d||x.f-y.f);
       }
-      saveLocal(); notePlanTr(); stDirty=true; flush(); await syncNotes(myTR); if(myTR!==TR) return;
+      stSynced=true; saveLocal(); notePlanTr(); stDirty=true; flush(); await syncNotes(myTR); if(myTR!==TR) return;
       refreshBadge(); if(!scrim.hidden&&panelView==="plan") renderPlanForm(); relayout();
     }catch(e){ dbBase=null; }
   }
 
   /* ---------- display settings and reading place, kept in the account as well (some app views do not keep browser storage) ---------- */
   // Each setting carries its own time, so two devices never wipe each other's settings: per setting, the newer wins.
-  var prefsRef=null, prefsT=null, applyingPrefs=false, prefsDone=false;
+  var prefsRef=null, prefsT=null, applyingPrefs=false, prefsDone=false, prefsReady=false;
   function prefKeyOf(k){ if(PREFK.includes(k)) return k; const t=TRACTS.find(t=>t.ls+"amud"===k); return t?"amud:"+t.key:null; }
-  function prefsDirty(k){ if(applyingPrefs) return; const pk=prefKeyOf(k); if(!pk) return;
+  function prefsDirty(k){ if(applyingPrefs) return; const pk=prefKeyOf(k); if(!pk) return; if(!prefsReady&&pk.startsWith("amud:")) return;
     const t=lsGet("prefs-t",{}); t[pk]=Date.now(); try{ localStorage.setItem(LS("prefs-t"),JSON.stringify(t)); }catch(e){}
     clearTimeout(prefsT); prefsT=setTimeout(()=>mergePrefs(false),1500); }
   function localPrefs(){ const v={}; for(const k of PREFK){ const x=lsGet(k,null); if(x!==null) v[k]=x; }
@@ -837,7 +837,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       if(Object.keys(take).length){ try{ localStorage.setItem(LS("prefs-t"),JSON.stringify(lt)); }catch(e){} applyPrefs(take,start); }
       if(push){ const v=localPrefs(), t={}; for(const k of Object.keys(v)) t[k]=Math.max(lt[k]||0,rt[k]||0,1); await prefsRef.set({v,t,m:Date.now()}); }
       lsSet("prefs-synced",true);
-    }catch(e){} }
+    }catch(e){} prefsReady=true; }
   async function syncPrefs(){ if(!prefsRef||prefsDone) return; prefsDone=true; await mergePrefs(true); }
   function applyPrefs(v,start){
     applyingPrefs=true;
@@ -846,16 +846,21 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
         if(k.startsWith("amud:")){ const t=TRACTS.find(t=>t.key===k.slice(5)); if(t) lsSet(t.ls+"amud",x); }
         else if(PREFK.includes(k)) lsSet(k,x); }
       BM=curBM();
+      // move to the account's place first, so the display changes below keep it
+      const am0=v["amud:"+TR.key], sw=start&&v.tr&&v.tr!==TR.key&&TRACTS.find(t=>t.key===v.tr);
+      if(!sw&&A&&am0!=null&&A[am0]&&(start||!BITE&&am0!==current)) layout(am0);
       if("px" in v) setSize(v.px); if("lh" in v) setLine(v.lh); if(v.font) setFont(v.font);
       if("justify" in v) setJustify(!!v.justify); if("refs" in v) setRefs(v.refs!==false); if("niqqud" in v) setNiqqud(v.niqqud!==false);
       if("stz" in v||"rashi" in v){ const sz=!!lsGet("stz",false); setStz(sz); setRashi(!!lsGet("rashi",false)&&!sz); }
       if("rw" in v) rw=+v.rw||2; if("rscript" in v) setRscript(v.rscript!==false);
     }finally{ applyingPrefs=false; }
     if(start&&v.tr&&v.tr!==TR.key&&TRACTS.find(t=>t.key===v.tr)){ loadTractate(v.tr,v["amud:"+v.tr]); return; }
-    (stzOn?loadStz():rashiOn?loadRashi():Promise.resolve()).then(()=>fontLoads(fontKey)).then(()=>{ const am=v["amud:"+TR.key]; if(start&&A&&am!=null&&A[am]) layout(am); else relayout(); });
+    (stzOn?loadStz():rashiOn?loadRashi():Promise.resolve()).then(()=>fontLoads(fontKey)).then(()=>{ relayout(); });
   }
   // coming back to the app: pick up what other devices did meanwhile
-  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&dbBase&&A){ mergePrefs(false); storeP=initStore(); } });
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&dbBase&&A){
+    const p0=ST.pos*1e4+(ST.posG||0), d0=ST.day&&ST.day.from;
+    mergePrefs(false); storeP=initStore().then(()=>{ if(BITE&&(ST.pos*1e4+(ST.posG||0)!==p0||(ST.day&&ST.day.from)!==d0)) showBite(); }); } });
 
   const today=()=>dayNum();
   /* ---------- daily reading: a fixed pace of 3 dapim a day, counted in words (the tractate's average daf × 3),
@@ -869,11 +874,11 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     const d=today();
     if(ST.day&&ST.day.d===d&&ST.day.to<=F.length) return {from:ST.day.from,to:ST.day.to,w:wordsBetween(ST.day.from,ST.day.to)};
     const from=ST.pos; if(from>=F.length) return null;
-    const amt=planAmt(); let i=from, acc=0;
+    const amt=planAmt(), keep=!dbBase||stSynced; let i=from, acc=0;
     while(i<F.length&&acc<amt){ acc+=F[i].w; i++; }
     // end on the nearer unit edge
     if(i>from+1&&i<=F.length&&acc-amt>amt-(acc-F[i-1].w)) i--;
-    ST.day={d,from,to:i}; saveLocal(); stDirty=true;
+    if(keep){ ST.day={d,from,to:i}; saveLocal(); stDirty=true; }
     return {from,to:i,w:wordsBetween(from,i)};
   }
   function planStatus(){
@@ -945,6 +950,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       if(k&&k!==TR.key){ const t=TRACTS.find(x=>x.key===k); toast("עובר למסכת "+t.he+"…"); await loadTractate(k,null); try{ await storeP; }catch(e){}
         if(TR.key!==k) return; if(ST.plan) return jumpToday(); }
       panelView="plan"; renderPlanForm(); openPanel(); return; }
+    if(storeP){ try{ await storeP; }catch(e){} }
     todayPortion(); showBite();
     const st=streak();
     toast((dayDone()?"✓ היום הושלם · ממשיכים קדימה":"היום: "+pctToday()+"%")+(st?" · רצף "+st+(st===1?" יום":" ימים"):""),"עריכת התוכנית",openPlan,5000);
@@ -1106,7 +1112,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     const L=[document.fonts.load("400 20px "+f[0]),document.fonts.load("700 20px "+f[0])]; if(f[1]) L.push(document.fonts.load("400 20px "+f[1])); return Promise.all(L).catch(()=>{}); }
   function setFont(k,relay){ const keep=!FONTS[k]&&k==="custom"; if(!FONTS[k]) k="frank"; fontKey=k; const [g,s]=FONTS[k], fb=',"Frank Ruhl Libre","Noto Serif Hebrew",Georgia,serif', r=document.documentElement.style;
     r.setProperty("--gfont",g+fb); r.setProperty("--sfont",(s||g)+fb); document.documentElement.classList.toggle("light-quotes",hasLight(k)); document.documentElement.classList.toggle("face-font",!!(FONTS[k]&&FONTS[k][4])); if(!keep) lsSet("font",k); if(relay) fontLoads(k).then(relayout); }
-  function effSize(){ return compact?Math.max(11,Math.round(size*0.66)):size; }
+  function effSize(){ return compact?Math.max(11,Math.round(size*(innerWidth>=640?0.8:0.66))):size; }
   function applyType(){ const r=document.documentElement.style, lh=LH[lhi];
     r.setProperty("--size",effSize()+"px"); r.setProperty("--lh",String(compact?1.22:lh)); r.setProperty("--ugap",compact?".12em":(0.2+(lh-1.3)*0.75).toFixed(2)+"em"); }
   function setSize(v,relay){ size=Math.round(Math.max(10,Math.min(34,v))); applyType(); lsSet("px",size); if(relay) relayout(); }
