@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261123191823";</script>
+<script>window.BABLI_BUILD="20261123202123";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -81,7 +81,7 @@ button:disabled{opacity:.4;cursor:default}
 #flow{flex:1;min-height:0;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;
   padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:0}
 .sheet{font-family:var(--gfont);font-size:var(--size);line-height:var(--lh);box-sizing:border-box;overflow:hidden;
-  padding-block:14px 64px;column-fill:auto}
+  padding-block:14px calc(10px + env(safe-area-inset-bottom,0px));column-fill:auto}
 .sheet.partial{column-fill:balance}
 .u{margin:0 0 var(--ugap);text-wrap:pretty}
 .u.brk{margin-bottom:0}
@@ -428,17 +428,21 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   function next(c){ let a=c.a, u=c.u+1; while(a<A.length && (!A[a] || u>=A[a].length)){ a++; u=0; } return a<A.length ? {a,u,w:0} : null; }
 
   /* ---------- reader: screens ---------- */
+  let BOT=10;
   function measure(){
     const cs=getComputedStyle(flow);
     width=flow.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
     H=flow.clientHeight;
+    // the corner buttons are gone: keep only a small margin (and the phone's own bottom inset)
+    const pb=document.createElement("div"); pb.style.cssText="position:fixed;visibility:hidden;height:env(safe-area-inset-bottom,0px)"; document.body.appendChild(pb);
+    BOT=10+(pb.getBoundingClientRect().height||0); pb.remove();
     const es=effSize(), dn=dense||compact; colW=es*(compact?12.5:15.5); gap=compact?Math.max(14,es*1.1):Math.max(dn?20:28,es*(dn?1.4:1.7));
     N=width<640&&!compact ? 1 : Math.max(1,Math.floor((width+gap)/(colW+gap)));
   }
   function newSheet(){ const s=document.createElement("section"); s.className="sheet";
     s.style.height=H+"px"; s.style.width=width+"px"; s.style.columnCount=N; s.style.columnGap=gap+"px"; return s; }
   function fits(sheet,el){
-    const r=sheet.getBoundingClientRect(), rs=el.getClientRects(), bottom=r.bottom-64;
+    const r=sheet.getBoundingClientRect(), rs=el.getClientRects(), bottom=r.bottom-BOT;
     if(!rs.length) return true;
     for(const q of rs){ if(q.left<r.left-1||q.right>r.right+1||q.bottom>bottom+1) return false; }
     return true;
