@@ -899,7 +899,11 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(!done(d)) d--;
     for(;;d--){ if(dayDate(d).getDay()===6) continue; if(done(d)) n++; else break; if(n>3650) break; }
     return n; }
-  function refreshBadge(){ const b=$("badge"); b.hidden=!(ST.plan&&todayPortion()&&!dayDone()); b.textContent="•";
+  // a hand-placed mark that the reading has already passed is no longer where I stopped
+  function pruneBM(){ if(!ST.plan||(dbBase&&!stSynced)) return; const mk=curBM(); if(!mk) return;
+    const f=flatOf(mk.a,mk.u); if(f==null) return;
+    if(f<ST.pos||(f===ST.pos&&(mk.g||0)<(ST.posG||0))){ setBM(null); keepPlace(); } }
+  function refreshBadge(){ pruneBM(); const b=$("badge"); b.hidden=!(ST.plan&&todayPortion()&&!dayDone()); b.textContent="•";
     if(window.BABLI_WEB&&window.BABLI_WEB.progress) try{ window.BABLI_WEB.progress(); }catch(e){} }
   function lateTxt(){ const st=planStatus(); if(!st) return ""; const amt=planAmt(), d=st.diff, days=Math.round(Math.abs(d)/amt);
     if(d<-amt*0.5) return "מאחר בכ־"+Math.max(1,days)+" ימים"; if(d>amt*1.5) return "מקדים בכ־"+Math.max(1,days-1)+" ימים"; return ""; }
@@ -970,7 +974,6 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     ST.pos=Math.max(ST.pos,b.to); ST.posG=0; logDay().w+=b.w;
     const nowDone=!wasDone&&dayDone(); if(nowDone) logDay().done=1;
     // the bites have gone past the hand-placed mark: it is no longer where I stopped
-    const mk=curBM(); if(mk&&flatOf(mk.a,mk.u)<ST.pos){ setBM(null); }
     save(); refreshBadge();
     const last=[...flow.querySelectorAll(".u.blast")].pop();
     flow.querySelectorAll(".u.bite").forEach(e=>e.classList.add("bdone"));
