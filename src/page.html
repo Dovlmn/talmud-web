@@ -308,7 +308,11 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     const tl=stackOf(stack.join("")+body).reverse().map(o=>PAIR[o]).join("");
     let out="";
     const qs=[]; let qk=qn-stack.filter(o=>o===QO).length;
-    for(const o of stack){ if(o===QO){ qs.push(ids?ids[qk]:null); qk++; } out+= o===QO ? '<span class="q">' : o===OPEN ? '<span class="em">' : '<span class="st">'; }
+    // inside a mishna, a "source" that is this very mishna (משנה <this tractate> …) is not a quote: no mark, no source
+    const fi0=au?flatOf(au.a,au.u):-1, inM=au&&SG&&SU&&SG[SU[fi0]]&&SG[SU[fi0]].k==="m", selfPre="משנה "+(TR&&TR.he)+" ";
+    const qid=id=>(inM&&id!=null&&REFS&&REFS[id]&&REFS[id].startsWith(selfPre))?-1:id;
+    const qopen=id=>id===-1?'<span>':'<span class="q">';
+    for(const o of stack){ let id=null; if(o===QO){ id=qid(ids?ids[qk]:null); qs.push(id); qk++; } out+= o===QO ? qopen(id) : o===OPEN ? '<span class="em">' : '<span class="st">'; }
     const NK=au?notesAt(au.a,au.u):null;
     let run="", tokHas=false, bgDone=false;
     const flushRun=()=>{
@@ -333,7 +337,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
         flushRun();
         if(ch===OPEN) out+='<span class="em">';
         else if(ch===SO){ d++; out+='<span class="st">'; }
-        else if(ch===QO){ qs.push(ids?ids[qn]:null); out+='<span class="q">'; qn++; }
+        else if(ch===QO){ const id=qid(ids?ids[qn]:null); qs.push(id); out+=qopen(id); qn++; }
         else if(ch===QC){ out+="</span>"; const id=qs.pop(); if(id!=null&&REFS&&REFS[id]&&au) out+='<span class="ref" data-q="'+id+'" role="button">'+REFS[id]+'</span>'; }
         else { if(ch===SC) d--; out+="</span>"; }
         continue;
