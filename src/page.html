@@ -969,6 +969,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     const b=BITE, p=todayPortion(), wasDone=dayDone();
     ST.pos=Math.max(ST.pos,b.to); ST.posG=0; logDay().w+=b.w;
     const nowDone=!wasDone&&dayDone(); if(nowDone) logDay().done=1;
+    // the bites have gone past the hand-placed mark: it is no longer where I stopped
+    const mk=curBM(); if(mk&&flatOf(mk.a,mk.u)<ST.pos){ setBM(null); }
     save(); refreshBadge();
     const last=[...flow.querySelectorAll(".u.blast")].pop();
     flow.querySelectorAll(".u.bite").forEach(e=>e.classList.add("bdone"));
