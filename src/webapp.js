@@ -376,6 +376,7 @@
       }
     },
     blocks() { return [accountBlock(), notifyBlock(), fontBlock()]; },
+    fullscreen(on) { if (!isNative()) return false; setFs(on); return true; },
     progress
   };
 

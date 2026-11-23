@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261123184312";</script>
+<script>window.BABLI_BUILD="20261123191739";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -139,6 +139,8 @@ button:disabled{opacity:.4;cursor:default}
 .u.bite.bfirst{border-top:2px solid var(--gold);border-radius:12px 12px 0 0;padding-top:.5em}
 .u.bite.blast{border-bottom:2px solid var(--gold);border-radius:0 0 12px 12px;padding-bottom:.5em;margin-bottom:var(--ugap)}
 .u.bite.bfirst.blast{border-radius:12px}
+/* inside a bite the new-sugya line is short, clear of the frame */
+.u.bite.ss:not(.bfirst):not(.m):not(.g){border-top:0;background:linear-gradient(var(--line),var(--line)) no-repeat center top/60% 1px}
 .u.bite.bdone{animation:none;border-color:var(--ok)}
 .btag{display:flex;justify-content:space-between;align-items:center;font-family:var(--ui);font-size:.6em;font-weight:700;color:var(--gold);margin-bottom:.3em}
 .bx{cursor:pointer;color:var(--muted);padding:0 .3em}
@@ -301,13 +303,23 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   let F=[]; const FI=new Map();
   const flatOf=(a,u)=>FI.get(a+":"+u);
   let SU=[];            // flat unit -> sugya index
+  // the mishnayot (as sources, "משנה <tractate> פ׳, מ׳") of the last mishna before a unit: what its Gemara discusses
+  let DISC=new Map();
+  function discussed(fi){
+    if(!REFS||!SG||!SU||SU[fi]==null) return null;
+    let j=SU[fi]; while(j>=0&&SG[j].k!=="m") j--; if(j<0) return null;
+    if(DISC.has(j)) return DISC.get(j);
+    const pre="משנה "+TR.he+" ", set=new Set(), g=SG[j];
+    for(let i=g.s;i<g.e;i++){ const f=F[i], ids=f&&A[f.a]&&A[f.a][f.u][2]; (ids||[]).forEach(id=>{ const r=id!=null&&REFS[id]; if(r&&r.startsWith(pre)) set.add(r); }); }
+    DISC.set(j,set); return set;
+  }
   let CH=[], CHF=[], CHN=[];   // perek starts {a,u}, their flat index, perek names
   function buildModel(){
     F=[]; FI.clear();
     for(let a=0;a<A.length;a++){ if(!A[a]) continue;
       for(let u=0;u<A[a].length;u++){ const [k,t]=A[a][u]; FI.set(a+":"+u,F.length);
         F.push({a,u,w:k==="h"?0:plain(t).split(" ").filter(Boolean).length}); } }
-    SU=new Array(F.length);
+    SU=new Array(F.length); DISC=new Map();
     SG.forEach((g,j)=>{ for(let i=g.s;i<g.e;i++) SU[i]=j; });
     CH=[{a:first,u:0}];
     for(let i=0;i<F.length;i++){ const {a,u}=F[i]; if(A[a][u][0]==="h"&&i+1<F.length) CH.push({a:F[i+1].a,u:F[i+1].u}); }
@@ -337,7 +349,11 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     const qs=[]; let qk=qn-stack.filter(o=>o===QO).length;
     // inside a mishna, a "source" that is this very mishna (משנה <this tractate> …) is not a quote: no mark, no source
     const fi0=au?flatOf(au.a,au.u):-1, inM=au&&SG&&SU&&SG[SU[fi0]]&&SG[SU[fi0]].k==="m", selfPre="משנה "+(TR&&TR.he)+" ";
-    const qid=id=>(inM&&id!=null&&REFS&&REFS[id]&&REFS[id].startsWith(selfPre))?-1:id;
+    const dis=!inM&&au?discussed(fi0):null;
+    const qid=id=>{ const r=id!=null&&REFS&&REFS[id]; if(!r) return id;
+      if(inM&&r.startsWith(selfPre)) return -1;      // the mishna itself
+      if(dis&&dis.has(r)) return -2;                 // the gemara quoting the mishna it discusses: still a quote, no source
+      return id; };
     const qopen=id=>id===-1?'<span>':'<span class="q">';
     for(const o of stack){ let id=null; if(o===QO){ id=qid(ids?ids[qk]:null); qs.push(id); qk++; } out+= o===QO ? qopen(id) : o===OPEN ? '<span class="em">' : '<span class="st">'; }
     const NK=au?notesAt(au.a,au.u):null;
@@ -1127,7 +1143,19 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   function setSize(v,relay){ size=Math.round(Math.max(10,Math.min(34,v))); applyType(); lsSet("px",size); if(relay) relayout(); }
   // "צפוף": a lot of text on one screen (smaller letters, tight lines, more columns, Gemara only) for review and titles
   function setCompact(on){ compact=on; $("cmpBtn").setAttribute("aria-pressed",String(on)); flow.classList.toggle("compact",on); lsSet("compact",on); applyType(); }
-  $("cmpBtn").onclick=()=>keepPlace(()=>{ setCompact(!compact); });
+  // "צפוף" also goes full screen (and leaves it again, if it was the one that entered it)
+  const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+  const fsIsOn=()=>document.documentElement.classList.contains("chromeless")||!!fsEl();
+  function setFull(on){
+    try{ if(window.BABLI_WEB&&BABLI_WEB.fullscreen&&BABLI_WEB.fullscreen(on)) return; }catch(e){}
+    const d=document, el=d.documentElement;
+    try{ if(on&&!fsEl()){ const rq=el.requestFullscreen||el.webkitRequestFullscreen; const pr=rq&&rq.call(el); if(pr&&pr.catch) pr.catch(()=>{}); }
+      else if(!on&&fsEl()) (d.exitFullscreen||d.webkitExitFullscreen).call(d); }catch(e){}
+  }
+  let cmpFs=false;
+  $("cmpBtn").onclick=()=>{ const on=!compact;
+    if(on){ cmpFs=!fsIsOn(); if(cmpFs) setFull(true); } else if(cmpFs){ cmpFs=false; setFull(false); }
+    keepPlace(()=>{ setCompact(on); }); };
   function setNiqqud(on,relay){ niqqud=on; lsSet("niqqud",on); if(relay) relayout(); }
   let showRefs=true;
   function setRefs(on,relay){ showRefs=on; flow.classList.toggle("norefs",!on); lsSet("refs",on); if(relay) relayout(); }
