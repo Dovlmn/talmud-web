@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261123112329";</script>
+<script>window.BABLI_BUILD="20261123112403";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -1098,8 +1098,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       (()=>{ const v=h("span",{style:"min-width:2.5em;text-align:center;font-variant-numeric:tabular-nums"},String(lhi+1));
         return h("div",{class:"row"},h("span",{},"ריווח שורות"),
           h("button",{class:"icon","aria-label":"ציפוף שורות",onclick:()=>{ setLine(lhi-1,true); v.textContent=lhi+1; }},"−"),v,
-          h("button",{class:"icon","aria-label":"ריווח שורות",onclick:()=>{ setLine(lhi+1,true); v.textContent=lhi+1; }},"+"),
-          h("span",{class:"note"},"צפוף מכניס יותר טקסט במסך")); })(),
+          h("button",{class:"icon","aria-label":"ריווח שורות",onclick:()=>{ setLine(lhi+1,true); v.textContent=lhi+1; }},"+")); })(),
       h("div",{class:"row"},h("button",{"aria-pressed":String(niqqud),onclick:e=>{ setNiqqud(!niqqud,true); e.currentTarget.setAttribute("aria-pressed",String(niqqud)); }},"ניקוד"),
         h("span",{class:"note"},"הניקוד נעשה אוטומטית ועלול לטעות; בלעדיו מוצג נוסח קורן כפי שהוא")),
       h("div",{class:"row"},h("button",{"aria-pressed":String(showRefs),onclick:e=>{ setRefs(!showRefs,true); e.currentTarget.setAttribute("aria-pressed",String(showRefs)); }},"מראי מקום"),
