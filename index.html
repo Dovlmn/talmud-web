@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261123203219";</script>
+<script>window.BABLI_BUILD="20261124062549";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -164,6 +164,17 @@ button:disabled{opacity:.4;cursor:default}
 .panel{background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgb(0 0 0 / .2);
   width:min(34rem,100%);max-height:100%;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:14px;font-size:.95rem;line-height:1.5;box-sizing:border-box}
 .panel.wide{width:min(46rem,100%)}
+/* mapping: a few bites at a glance, with titles and summaries */
+.mapx{display:flex;flex-direction:column;gap:2px;max-height:min(62vh,40rem);overflow:auto;padding-inline-end:4px;margin-block:6px 10px;border-block:1px solid var(--line)}
+.mxu{padding:4px 0}
+.mxp{font-family:var(--gfont);font-size:.92rem;line-height:1.5;margin:0;color:var(--ink)}
+.mxt{font-weight:700;color:var(--accent,#28566e);font-size:1rem;margin:8px 0 2px;cursor:pointer}
+.mxs{font-size:.86rem;white-space:pre-wrap;border-inline-start:3px solid var(--good,#3a7d44);padding:1px 8px;margin:3px 0;cursor:pointer}
+.mxa{display:flex;gap:6px;margin-top:2px}
+.mxa button{font-size:.75rem;padding:2px 9px;min-height:0;opacity:.75}
+.mxed{display:flex;flex-direction:column;gap:4px;margin:4px 0}
+.mxed textarea,.mxed input{font:inherit;font-size:.9rem}
+.mxsums{font-size:.82rem;color:var(--muted);margin:0 0 4px;padding-inline-start:1em}
 .panel>*{flex-shrink:0}
 .panel h2{margin:0;font-family:var(--text);font-size:1.35rem}
 .panel h3{margin:0;font-size:.8rem;font-weight:700;color:var(--muted);letter-spacing:.03em}
@@ -1000,16 +1011,20 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     const b=BITE, p=todayPortion(), wasDone=dayDone();
     ST.pos=Math.max(ST.pos,b.to); ST.posG=0; logDay().w+=b.w;
     const nowDone=!wasDone&&dayDone(); if(nowDone) logDay().done=1;
-    // the bites have gone past the hand-placed mark: it is no longer where I stopped
+    // every fourth bite: a moment to give titles and summaries to the last four
+    if(ST.mapF==null||ST.mapF>b.from) ST.mapF=b.from;
+    ST.mapQ=(ST.mapQ||0)+1;
+    let mapR=null; if(ST.mapQ>=MAPN){ mapR={from:ST.mapF,to:ST.pos}; ST.mapQ=0; ST.mapF=null; }
     save(); refreshBadge();
     const last=[...flow.querySelectorAll(".u.blast")].pop();
     flow.querySelectorAll(".u.bite").forEach(e=>e.classList.add("bdone"));
     if(last){ sparkle(last); if(nowDone) setTimeout(()=>sparkle(last),350); }
     try{ if(navigator.vibrate) navigator.vibrate(nowDone?[40,60,40]:30); }catch(e){}
+    if(cont&&!nowDone&&mapR){ setTimeout(()=>openMapping(mapR,()=>showBite()),reduce?0:500); return; }
     if(cont&&!nowDone){ setTimeout(()=>{ showBite(); toast("✓ ביס הושלם · היום: "+pctToday()+"%",null,null,2200); },reduce?0:450); return; }
-    setTimeout(()=>renderBiteDone(b,nowDone),reduce?0:550);
+    setTimeout(()=>renderBiteDone(b,nowDone,mapR),reduce?0:550);
   }
-  function renderBiteDone(b,nowDone){
+  function renderBiteDone(b,nowDone,mapR){
     panelView="bite"; panel.innerHTML="";
     const st=streak();
     panel.append(h("div",{class:"win"+(nowDone?" big":"")},
@@ -1022,10 +1037,66 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     }
     const keep=()=>{ const x=ta&&ta.value.trim(); if(x){ (ST.sums=ST.sums||[]).push({d:today(),f:b.from,t:b.to,x}); if(ST.sums.length>200) ST.sums=ST.sums.slice(-200); save(); } };
     panel.append(h("div",{class:"row"},
-      h("button",{class:"primary",onclick:()=>{ keep(); closePanel(); showBite(); }},"עוד ביס"),
-      h("button",{onclick:()=>{ keep(); closePanel(); endBite(); keepPlace(); }},"מספיק לעכשיו")));
+      h("button",{class:"primary",onclick:()=>{ keep(); if(mapR) openMapping(mapR,()=>showBite()); else { closePanel(); showBite(); } }},"עוד ביס"),
+      h("button",{onclick:()=>{ keep(); const done=()=>{ endBite(); keepPlace(); }; if(mapR) openMapping(mapR,done); else { closePanel(); done(); } }},"מספיק לעכשיו")));
     openPanel();
     if(ta) setTimeout(()=>{ try{ ta.focus(); }catch(e){} },60);
+  }
+  /* ---------- mapping: titles for sugyot, summaries for paragraphs, over what was just learned ---------- */
+  const MAPN=4;
+  const plainText=(a,u)=>A[a][u][1].replace(/[\u2063\u2064\uE000-\uE003]/g,"");
+  function unmappedToday(){ const p=ST.plan&&ST.day&&ST.day.d===dayNum()?ST.day:null; if(!p) return 0; let n=0;
+    for(let f=p.from;f<Math.min(ST.pos,F.length);f++){ const x=F[f]; if(A[x.a][x.u][0]!=="h"&&!sumsFor(x.a,x.u).length) n++; } return n; }
+  // range {from,to} of flat units; evening: only paragraphs without a summary
+  function openMapping(r,after,evening){ panelView="mapping"; renderMapping(r,after,evening); openPanel(true); }
+  function renderMapping(r,after,evening,keepTop){
+    const top=keepTop!=null?keepTop:0;
+    panel.innerHTML="";
+    const fa=F[r.from], la=F[Math.max(r.from,r.to-1)];
+    const where=fa?amudName(fa.a)+(la&&la.a!==fa.a?" – "+amudName(la.a):""):"";
+    panel.append(h("h2",{id:"panelTitle"},evening?"מיפוי של היום":"מיפוי · "+MAPN+" הביסים האחרונים"));
+    panel.append(h("div",{class:"note"},where+" · כותרת לסוגיה, סיכום לפסקה (בקיצור). אפשר גם לדלג."));
+    const sums=(ST.sums||[]).filter(x=>x.f>=r.from&&x.t<=r.to);
+    if(sums.length) panel.append(h("div",{class:"mxsums"},h("b",{},"מה אמרת אחרי הביסים: "),sums.map(x=>x.x).join(" · ")));
+    const box=h("div",{class:"mapx"}); let shownN=0;
+    const rerender=()=>renderMapping(r,after,evening,box.scrollTop);
+    const editor=(ph,val,multi,onSave)=>{ const ta=multi?h("textarea",{rows:"3",dir:"rtl",placeholder:ph}):h("input",{type:"text",dir:"rtl",placeholder:ph});
+      ta.value=val||""; const ed=h("div",{class:"mxed"},ta,h("div",{class:"row"},h("button",{class:"primary",onclick:()=>onSave(ta.value.trim())},"שמירה"),h("button",{class:"ghost",onclick:rerender},"ביטול")));
+      ta.addEventListener("keydown",e=>{ if(e.key==="Enter"&&(!multi||e.metaKey||e.ctrlKey)){ e.preventDefault(); onSave(ta.value.trim()); } });
+      setTimeout(()=>{ try{ ta.focus(); }catch(e){} },30); return ed; };
+    for(let f=r.from;f<Math.min(r.to,F.length);f++){
+      const {a,u}=F[f]; if(A[a][u][0]==="h") continue;
+      const sm=sumsFor(a,u); if(evening&&sm.length) continue;
+      shownN++;
+      const el=h("div",{class:"mxu"});
+      // titles inside this paragraph
+      for(const k of Object.keys(NOTES)){ const [ka,ku,kg]=k.split(":").map(Number); if(ka!==a||ku!==u||kg<0) continue;
+        NOTES[k].forEach((n,i)=>{ if(n.t!=="b") return; const t=h("div",{class:"mxt",title:"עריכה"},n.x);
+          t.onclick=()=>t.replaceWith(editor("כותרת",n.x,false,x=>{ const arr=[...NOTES[k]]; if(x) arr[i]={...n,x}; else arr.splice(i,1); if(arr.length) NOTES[k]=arr; else delete NOTES[k]; storeNotes(a); rerender(); }));
+          el.append(t); }); }
+      el.append(h("p",{class:"mxp"},plainText(a,u)));
+      sm.forEach((n,i)=>{ const t=h("div",{class:"mxs",title:"עריכה"},n.x);
+        t.onclick=()=>t.replaceWith(editor("סיכום",n.x,true,x=>{ const key=a+":"+u+":-1", arr=[...sumsFor(a,u)]; if(x) arr[i]={...n,x}; else arr.splice(i,1); if(arr.length) NOTES[key]=arr; else delete NOTES[key]; storeNotes(a); rerender(); }));
+        el.append(t); });
+      const acts=h("div",{class:"mxa"});
+      const addT=h("button",{class:"ghost"},"+ כותרת"), addS=h("button",{class:"ghost"},"+ סיכום");
+      addT.onclick=()=>acts.replaceWith(editor("כותרת לסוגיה שמתחילה כאן",null,false,x=>{ if(x){ const key=a+":"+u+":0"; NOTES[key]=[...(NOTES[key]||[]),{t:"b",x,d:today()}]; storeNotes(a); } rerender(); }));
+      addS.onclick=()=>acts.replaceWith(editor(sm.length?"ההמשך ייכנס מתחת לסיכום הקודם":"סיכום הפסקה במילים שלך",null,true,x=>{ if(x){ const key=a+":"+u+":-1"; NOTES[key]=[...sumsFor(a,u),{t:"s",x,d:today()}]; storeNotes(a); } rerender(); }));
+      acts.append(addT,addS); el.append(acts);
+      box.append(el);
+    }
+    if(!shownN) box.append(h("div",{class:"note"},evening?"כל הפסקאות של היום כבר מסוכמות.":"אין כאן טקסט למפות."));
+    panel.append(box);
+    const go=()=>{ closePanel(); keepPlace(); if(window.BABLI_WEB&&BABLI_WEB.progress) try{ BABLI_WEB.progress(); }catch(e){} after&&after(); };
+    panel.append(h("div",{class:"row"},h("button",{class:"primary",onclick:go},after&&!evening?"סיימתי · ממשיכים ←":"סיימתי"),h("button",{class:"ghost spacer",onclick:go},"דילוג")));
+    box.scrollTop=top;
+  }
+  async function openEveningMap(){
+    if(!ST.plan){ const k=await findPlanTr(); if(k&&k!==TR.key){ await loadTractate(k,null); try{ await storeP; }catch(e){} } }
+    if(storeP){ try{ await storeP; }catch(e){} }
+    const p=ST.plan&&ST.day&&ST.day.d===dayNum()?ST.day:null;
+    if(!p||ST.pos<=p.from){ toast("היום עוד לא למדת. המיפוי מחכה לך אחרי הביסים."); return; }
+    openMapping({from:p.from,to:ST.pos},null,true);
   }
   // finishing the whole day at once (reading straight through, without bites)
   function finishReading(){
@@ -1100,7 +1171,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     const sumBtn=nS?h("button",{"aria-pressed":String(sumOn),onclick:()=>{ sumOn=!sumOn; lsSet("mapsum",sumOn); body.classList.toggle("sumon",sumOn); sumBtn.setAttribute("aria-pressed",String(sumOn)); }},"סיכומים ("+nS+")"):null;
     let bkOpen=false;
     const allBtn=nR?h("button",{onclick:()=>{ bkOpen=!bkOpen; body.querySelectorAll("details.mbk").forEach(d=>d.open=bkOpen); allBtn.textContent=bkOpen?"סגירת הרקע":"פתיחת כל הרקע ("+nR+")"; }},"פתיחת כל הרקע ("+nR+")"):null;
-    panel.append(h("div",{class:"row"},h("h2",{id:"panelTitle"},"מפת מסכת "+TR.he),sumBtn,allBtn,h("button",{class:"ghost spacer",onclick:closePanel},"סגירה")));
+    panel.append(h("div",{class:"row"},h("h2",{id:"panelTitle"},"מפת מסכת "+TR.he),sumBtn,allBtn,ST.plan?h("button",{onclick:()=>{ closePanel(); openEveningMap(); }},"מיפוי של היום"):null,h("button",{class:"ghost spacer",onclick:closePanel},"סגירה")));
     panel.append(h("p",{class:"note"},"פתיחת כל משנה, ובין המשניות הכותרות שכתבת"+(nT?" ("+nT+")":"")+". כותרת נכתבת בלחיצה על מילה, בסוג \"כותרת\"; דברי רקע בסוג \"רקע\"; סיכום של פסקה בלחיצה ארוכה על מילה. לחיצה על שורה מעבירה לשם."));
     const here=flatOf(current>=0?current:first,0)||0; let hereEl=null, ci=-1;
     const goTo=(a,u,g)=>{ closePanel(); layoutAt({a,u,w:g>0?gToTok(a,u,g):0}); };
@@ -1305,7 +1376,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(x.tr!==TR.key) loadTractate(x.tr,x.a); });
   if(window.BABLI_WEB&&window.BABLI_WEB.init) window.BABLI_WEB.init({h,FONTS,setFont,fontKey:()=>fontKey,relayout,toast,
     reinit:()=>{ prefsDone=false; if(A) storeP=initStore(); }, openBite:()=>{ if(A) jumpToday(); },
-    status:()=>({plan:!!(A&&ST.plan), pct:A&&ST.plan?pctToday():0, streak:A&&ST.plan?streak():0})});
+    openMap:()=>{ if(A) openEveningMap(); },
+    status:()=>({plan:!!(A&&ST.plan), pct:A&&ST.plan?pctToday():0, streak:A&&ST.plan?streak():0, unmapped:A&&ST.plan?unmappedToday():0})});
   loadTractList().then(()=>{ const hx=parseHashFull(); loadTractate(hx?hx.tr:lsGet("tr","shabbat"),hx?hx.a:null); });
 })();
 </script>

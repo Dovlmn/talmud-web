@@ -245,9 +245,12 @@
 
   /* ---------- reminders (מצב קרצייה): this phone receives them; the hourly job decides when ---------- */
   const Push = () => isNative() && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications;
-  let pushReady = false, notifyCfg = { on: true, from: 7, to: 22 };
+  let pushReady = false, notifyCfg = { on: true, from: 7, to: 22, eveOn: true, eve: 21 };
   try { const x = JSON.parse(localStorage.getItem("babli-notify") || "null"); if (x) notifyCfg = { ...notifyCfg, ...x }; } catch (e) {}
   const notifyDoc = () => fdb.doc("data/users/" + user.uid + "/notify");
+  function openMapSoon() {
+    let n = 0; const t = setInterval(() => { n++; if (ctx && ctx.status().plan !== undefined) { clearInterval(t); setTimeout(() => { try { ctx.openMap(); } catch (e) {} }, 800); } if (n > 40) clearInterval(t); }, 500);
+  }
   function openBiteSoon() {
     let n = 0; const t = setInterval(() => { n++; try { ctx && ctx.openBite(); } catch (e) {} if (document.querySelector(".u.bite") || n > 40) clearInterval(t); }, 500);
   }
@@ -270,13 +273,17 @@
     const h = ctx.h;
     const box = h("div", { class: "block" }, h("h3", {}, "תזכורות (מצב קרצייה)"));
     if (!LN()) { box.append(h("div", { class: "note" }, "התזכורות מגיעות לאפליקציית האנדרואיד.")); return box; }
-    const save = () => { try { localStorage.setItem("babli-notify", JSON.stringify(notifyCfg)); } catch (e) {} if (user && fdb) notifyDoc().set({ on: notifyCfg.on !== false, from: notifyCfg.from, to: notifyCfg.to }, { merge: true }).catch(() => {}); progress(); };
+    const save = () => { try { localStorage.setItem("babli-notify", JSON.stringify(notifyCfg)); } catch (e) {} if (user && fdb) notifyDoc().set({ on: notifyCfg.on !== false, from: notifyCfg.from, to: notifyCfg.to, eveOn: notifyCfg.eveOn !== false, eve: notifyCfg.eve ?? 21 }, { merge: true }).catch(() => {}); progress(); };
     const hours = sel => { const o = []; for (let i = 5; i <= 24; i++) o.push(h("option", { value: String(i), selected: i === sel }, String(i).padStart(2, "0") + ":00")); return o; };
     const fr = h("select", {}, hours(notifyCfg.from)), to = h("select", {}, hours(notifyCfg.to));
     fr.onchange = () => { notifyCfg.from = +fr.value; save(); }; to.onchange = () => { notifyCfg.to = +to.value; save(); };
     const tg = h("button", { "aria-pressed": String(notifyCfg.on !== false), onclick: () => { notifyCfg.on = notifyCfg.on === false; tg.setAttribute("aria-pressed", String(notifyCfg.on)); save(); if (notifyCfg.on) setupPush(); } }, "תזכורות");
     box.append(h("div", { class: "note" }, "כל עוד קריאת היום לא הושלמה: תזכורת כל שעתיים, ולחיצה עליה פותחת את הביס הבא. לא בשבת ובחג, ולא בערב שבת וערב חג אחרי 14:00."),
       h("div", { class: "row" }, tg, h("label", { class: "f" }, "משעה", fr), h("label", { class: "f" }, "עד שעה", to)));
+    const ev = h("select", {}, hours(notifyCfg.eve ?? 21)); ev.onchange = () => { notifyCfg.eve = +ev.value; save(); };
+    const et = h("button", { "aria-pressed": String(notifyCfg.eveOn !== false), onclick: () => { notifyCfg.eveOn = notifyCfg.eveOn === false; et.setAttribute("aria-pressed", String(notifyCfg.eveOn)); save(); } }, "מיפוי בערב");
+    box.append(h("div", { class: "note" }, "פעם ביום, בשעה שתבחר: הזמנה לתת כותרות וסיכומים לפסקאות של היום שעוד אין להן סיכום. לחיצה עליה פותחת אותן."),
+      h("div", { class: "row" }, et, h("label", { class: "f" }, "בשעה", ev)));
     return box;
   }
 
@@ -305,17 +312,34 @@
       return (hebcal.HebrewCalendar.getHolidaysOnDate(new hebcal.HDate(date), true) || []).some(e => e.getFlags() & hebcal.flags.CHAG);
     } catch (e) { return false; }
   }
+  const now0 = () => new Date();
   async function scheduleLocal(s) {
     const L = LN(); if (!L || !ctx) return;
     try {
       if (!lnReady) {
         lnReady = true;
-        L.addListener("localNotificationActionPerformed", () => openBiteSoon());
+        L.addListener("localNotificationActionPerformed", (e) => { const x = e && e.notification && e.notification.extra; if (x && x.map) openMapSoon(); else openBiteSoon(); });
         try { await L.createChannel({ id: "bites", name: "ביסים", description: "תזכורת לביס הבא כשקריאת היום עוד לא הושלמה", importance: 4, vibration: true }); } catch (e) {}
         let p = await L.checkPermissions(); if (p.display !== "granted") p = await L.requestPermissions();
       }
-      const ids = []; for (let i = 0; i < 40; i++) ids.push({ id: 900 + i });
+      const ids = []; for (let i = 0; i < 60; i++) ids.push({ id: 900 + i });
       try { await L.cancel({ notifications: ids }); } catch (e) {}
+      // the evening invitation to give titles and summaries (today: only if something learned today is still unsummarized)
+      const evs = [];
+      if (notifyCfg.eveOn !== false) {
+        const H = notifyCfg.eve ?? 21;
+        for (let dd = 0; dd < 3; dd++) {
+          const day = new Date(now0().getFullYear(), now0().getMonth(), now0().getDate() + dd);
+          const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), H, 0);
+          if (at.getTime() < Date.now() + 60e3) continue;
+          if (await restDay(day)) continue;
+          if (day.getDay() === 5 || await restDay(new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1))) continue;
+          if (dd === 0 && !s.unmapped) continue;
+          evs.push({ id: 950 + dd, title: "בבלי · מיפוי", body: dd === 0 ? "יש " + s.unmapped + (s.unmapped === 1 ? " פסקה" : " פסקאות") + " מהיום בלי סיכום. כמה דקות לכותרות ולסיכומים?" : "ערב טוב. כמה דקות לכותרות ולסיכומים של מה שלמדת היום?",
+            schedule: { at, allowWhileIdle: true }, channelId: "bites", smallIcon: "ic_stat_babli", extra: { map: 1 } });
+        }
+      }
+      if (evs.length) await L.schedule({ notifications: evs });
       if (notifyCfg.on === false) return;
       const from = notifyCfg.from ?? 7, to = notifyCfg.to ?? 22, now = new Date(), out = []; let id = 900;
       for (let dd = 0; dd < 3; dd++) {
