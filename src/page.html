@@ -1068,7 +1068,10 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(!ST.plan){ const k=await findPlanTr(); if(k&&k!==TR.key){ await loadTractate(k,null); try{ await storeP; }catch(e){} } }
     if(storeP){ try{ await storeP; }catch(e){} }
     const p=ST.plan&&ST.day&&ST.day.d===dayNum()?ST.day:null;
-    if(!p||ST.pos<=p.from){ toast("היום עוד לא למדת. המיפוי מחכה לך אחרי הביסים."); return; }
+    if(!p||ST.pos<=p.from){
+      // nothing read in the app today (Motzaei Shabbat: the learning was from a book): first mark where you got to
+      const f=F[ST.pos]; if(f) layoutAt({a:f.a,u:f.u,w:0});
+      toast("סמן קודם עד היכן הגעת: לחיצה על המילה ← \"עצרתי כאן\". אחר כך \"מיפוי של היום\" במפה יציג את מה שלמדת.",null,null,9000); return; }
     openMapping({from:p.from,to:ST.pos},null,true);
   }
   // finishing the whole day at once (reading straight through, without bites)

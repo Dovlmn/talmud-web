@@ -330,12 +330,15 @@
         const H = notifyCfg.eve ?? 21;
         for (let dd = 0; dd < 3; dd++) {
           const day = new Date(now0().getFullYear(), now0().getMonth(), now0().getDate() + dd);
-          const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), H, 0);
+          // Motzaei Shabbat / Yom Tov is a mapping evening too (the day's learning was from a book): not before 21:00
+          const rest = await restDay(day);
+          const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), rest ? Math.max(H, 21) : H, 0);
           if (at.getTime() < Date.now() + 60e3) continue;
-          if (await restDay(day)) continue;
           if (day.getDay() === 5 || await restDay(new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1))) continue;
-          if (dd === 0 && !s.unmapped) continue;
-          evs.push({ id: 950 + dd, title: "בבלי · מיפוי", body: dd === 0 ? "יש " + s.unmapped + (s.unmapped === 1 ? " פסקה" : " פסקאות") + " מהיום בלי סיכום. כמה דקות לכותרות ולסיכומים?" : "ערב טוב. כמה דקות לכותרות ולסיכומים של מה שלמדת היום?",
+          if (dd === 0 && !rest && !s.unmapped) continue;
+          const body = rest ? (day.getDay() === 6 ? "מוצאי שבת" : "מוצאי חג") + ": סמן עד היכן למדת, ותן כותרות וסיכומים למה שלמדת מהספר."
+            : dd === 0 ? "יש " + s.unmapped + (s.unmapped === 1 ? " פסקה" : " פסקאות") + " מהיום בלי סיכום. כמה דקות לכותרות ולסיכומים?" : "ערב טוב. כמה דקות לכותרות ולסיכומים של מה שלמדת היום?";
+          evs.push({ id: 950 + dd, title: "בבלי · מיפוי", body,
             schedule: { at, allowWhileIdle: true }, channelId: "bites", smallIcon: "ic_stat_babli", extra: { map: 1 } });
         }
       }
