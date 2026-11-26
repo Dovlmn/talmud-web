@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261126222121";</script>
+<script>window.BABLI_BUILD="20261126224436";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -476,8 +476,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
         if(isFirst){ el.classList.add("mfirst"); const left=q.solo?0:leftCount();
           pre='<span class="mtag"><span>✎ '+esc(q.title)+(q.solo?"":' · קטע '+q.n)+(left?" · עוד "+left+(left===1?" פסקה":" פסקאות"):"")+'</span><span class="mend-x bx2" role="button" aria-label="סיום המיפוי">✕</span></span>'+bnd("s","התחלה:")+pre; }
         if(isLast){ el.classList.add("mlast");
-          const sa=F[q.s[0]], hiG=q.e[0]===q.s[0]?q.e[1]:1e9, sm=sumsFor(sa.a,sa.u).map((n,i)=>[n,i]).filter(([n])=>n.t==="s"&&(n.sg||0)>=q.s[1]&&(n.sg||0)<=hiG);
-          post+=bnd("e","סוף:")+(sm.length?'<span class="msums">'+sm.map(([n,i])=>'<span class="msum1" data-i="'+i+'" role="button">'+esc(n.x)+'</span>').join("")+'</span>':"")
+          const qs=pv(q.s), qe=pv(q.e), sm=cov().filter(c=>c[0]<=qe&&c[1]>=qs).map(c=>[NOTES[c[2]+":"+c[3]+":-1"][c[4]],c]);
+          post+=bnd("e","סוף:")+(sm.length?'<span class="msums">'+sm.map(([n,c])=>'<span class="msum1" data-a="'+c[2]+'" data-u="'+c[3]+'" data-i="'+c[4]+'" role="button">'+esc(n.x)+'</span>').join("")+'</span>':"")
             +'<span class="mbtns"><span class="mtitle" role="button">+ כותרת</span><span class="msumb" role="button">+ סיכום</span>'
             +'<span class="mnext" role="button">הבא '+(q.dir>0?"←":"(אחורה) ←")+'</span><span class="mend" role="button">סיום</span></span>'; }
       }
@@ -642,7 +642,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   // a long press on a word: write a summary of its paragraph
   let lpT=null, lpAt=0;
   const lpCancel=()=>{ clearTimeout(lpT); lpT=null; };
-  const lpFire=t=>{ const w=wordOf(t); if(!w||!scrim.hidden) return false; lpAt=performance.now(); mapHere(w.a,w.u); return true; };
+  const lpFire=t=>{ const w=wordOf(t); if(!w||!scrim.hidden) return false; lpAt=performance.now(); mapHere(w.a,w.u,w.g); return true; };
   flow.addEventListener("touchstart",e=>{ lpCancel(); if(DRAG||(e.target.closest&&e.target.closest(".mdrag"))){ tOn=false; return; } if(e.touches.length!==1){ tOn=false; return; } tOn=true; tx=e.touches[0].clientX; ty=e.touches[0].clientY;
     const t=e.target; lpT=setTimeout(()=>{ lpT=null; if(lpFire(t)){ tOn=false; try{ navigator.vibrate&&navigator.vibrate(15); }catch(er){} } },550); },{passive:true});
   flow.addEventListener("touchmove",e=>{ e.preventDefault(); const q=e.touches[0]; if(lpT&&q&&Math.hypot(q.clientX-tx,q.clientY-ty)>10) lpCancel(); },{passive:false});
@@ -667,7 +667,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       const mk=t.closest(".mpk"); if(mk){ pickBound(mk.dataset.w); return; }
       if(t.closest(".mtitle")){ panelView="note"; renderNoteEditor(cur.a,cur.u,q.s[1],null,"b"); openPanel(); return; }
       if(t.closest(".msumb")){ spanSummary(); return; }
-      const sx=t.closest(".msum1"); if(sx){ panelView="sum"; renderSummary(cur.a,cur.u,0,+sx.dataset.i); openPanel(); return; }
+      const sx=t.closest(".msum1"); if(sx){ panelView="sum"; renderSummary(+sx.dataset.a,+sx.dataset.u,0,+sx.dataset.i); openPanel(); return; }
       if(q.pick){ const w=wordOf(t); if(w){ setBoundAt(flatOf(w.a,w.u),w.g); return; } } }
     const r=e.target.closest&&e.target.closest(".ref");
     if(r){ openQuote(+r.dataset.q); return; }
@@ -1131,8 +1131,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   let COV=null, COVV=-1;
   function cov(){ if(COV&&COVV===NOTESV) return COV; const out=[];
     for(const [k,arr] of Object.entries(NOTES)){ const [a,u,g]=k.split(":").map(Number); if(g!==-1||!arr) continue; const f=flatOf(a,u); if(f==null) continue;
-      for(const n of arr){ if(n.t!=="s") continue; const ef=n.ea!=null?flatOf(n.ea,n.eu):f;
-        out.push([pv([f,n.sg||0]), n.ea!=null?pv([ef,n.eg]):pv([f,Math.max(0,gw(f)-1)])]); } }
+      arr.forEach((n,i)=>{ if(n.t!=="s") return; const ef=n.ea!=null?flatOf(n.ea,n.eu):f;
+        out.push([pv([f,n.sg||0]), n.ea!=null?pv([ef,n.eg]):pv([f,Math.max(0,gw(f)-1)]), a, u, i, f, n.ea!=null?ef:f, n.ea!=null?n.eg:Math.max(0,gw(f)-1)]); }); }
     out.sort((x,y)=>x[0]-y[0]); COV=out; COVV=NOTESV; return out; }
   function covered(P){ const v=pv(P); for(const [s0,e0] of cov()){ if(s0>v) break; if(e0>=v) return true; } return false; }
   // a paragraph is mapped once every word of it is inside some summary (a title alone is not enough)
@@ -1178,9 +1178,12 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(window.BABLI_WEB&&BABLI_WEB.progress) try{ BABLI_WEB.progress(); }catch(e){}
     if(q&&q.after) q.after(); else keepPlace(); }
   // a long press on a word: the same framed span over its paragraph, right where it is
-  function mapHere(a,u){ const f=flatOf(a,u), n=gw(f); if(!n) return;
+  function mapHere(a,u,g){ const f=flatOf(a,u), n=gw(f); if(!n) return;
     if(BITE) endBite();
-    MAPQ={lo:0,hi:F.length,dir:1,title:"סיכום",after:null,n:1,pick:null,solo:true,s:[f,0],e:[f,n-1]};
+    // inside a span that already has a summary: open that span (it may run over many paragraphs)
+    const v=pv([f,Math.max(0,g||0)]), hit=cov().filter(c=>c[0]<=v&&c[1]>=v).sort((x,y)=>(x[1]-x[0])-(y[1]-y[0]))[0];
+    const s0=hit?[hit[5],hit[0]%1e5]:[f,0], e0=hit?[hit[6],hit[7]]:[f,n-1];
+    MAPQ={lo:0,hi:F.length,dir:1,title:"סיכום",after:null,n:1,pick:null,solo:true,s:s0,e:e0};
     keepPlace(); }
   // drag a boundary handle onto a word: the word under the finger lights up, letting go sets the boundary there
   let DRAG=null, dragEnd=0;
