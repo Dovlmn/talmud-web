@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261126213158";</script>
+<script>window.BABLI_BUILD="20261126214333";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -455,8 +455,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
         const endTok=fi===q.e[0]?gToTok(a,u,q.e[1]+1):words.length;
         const isFirst=fi===q.s[0]&&tokToG(a,u,w0)===q.s[1], isLast=fi===q.e[0]&&w1>=Math.min(endTok,words.length);
         const bnd=(w,lbl)=>'<span class="mbnd">'+lbl+' <span class="mb" data-w="'+w+'" data-d="-1" role="button" aria-label="משפט אחד מוקדם יותר">▲</span><span class="mb" data-w="'+w+'" data-d="1" role="button" aria-label="משפט אחד מאוחר יותר">▼</span><span class="mpk'+(q.pick===w?" on":"")+'" data-w="'+w+'" role="button">☝ מילה</span></span>';
-        if(isFirst){ el.classList.add("mfirst"); const left=leftCount();
-          pre='<span class="mtag"><span>✎ '+esc(q.title)+' · קטע '+q.n+(left?" · עוד "+left+(left===1?" פסקה":" פסקאות"):"")+'</span><span class="mend-x bx2" role="button" aria-label="סיום המיפוי">✕</span></span>'+bnd("s","התחלה:")+pre; }
+        if(isFirst){ el.classList.add("mfirst"); const left=q.solo?0:leftCount();
+          pre='<span class="mtag"><span>✎ '+esc(q.title)+(q.solo?"":' · קטע '+q.n)+(left?" · עוד "+left+(left===1?" פסקה":" פסקאות"):"")+'</span><span class="mend-x bx2" role="button" aria-label="סיום המיפוי">✕</span></span>'+bnd("s","התחלה:")+pre; }
         if(isLast){ el.classList.add("mlast");
           const sa=F[q.s[0]], hiG=q.e[0]===q.s[0]?q.e[1]:1e9, sm=sumsFor(sa.a,sa.u).map((n,i)=>[n,i]).filter(([n])=>n.t==="s"&&(n.sg||0)>=q.s[1]&&(n.sg||0)<=hiG);
           post+=bnd("e","סוף:")+(sm.length?'<span class="msums">'+sm.map(([n,i])=>'<span class="msum1" data-i="'+i+'" role="button">'+esc(n.x)+'</span>').join("")+'</span>':"")
@@ -624,7 +624,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   // a long press on a word: write a summary of its paragraph
   let lpT=null, lpAt=0;
   const lpCancel=()=>{ clearTimeout(lpT); lpT=null; };
-  const lpFire=t=>{ const w=wordOf(t); if(!w||!scrim.hidden) return false; lpAt=performance.now(); openSummary(w.a,w.u,w.g); return true; };
+  const lpFire=t=>{ const w=wordOf(t); if(!w||!scrim.hidden) return false; lpAt=performance.now(); mapHere(w.a,w.u); return true; };
   flow.addEventListener("touchstart",e=>{ lpCancel(); if(e.touches.length!==1){ tOn=false; return; } tOn=true; tx=e.touches[0].clientX; ty=e.touches[0].clientY;
     const t=e.target; lpT=setTimeout(()=>{ lpT=null; if(lpFire(t)){ tOn=false; try{ navigator.vibrate&&navigator.vibrate(15); }catch(er){} } },550); },{passive:true});
   flow.addEventListener("touchmove",e=>{ e.preventDefault(); const q=e.touches[0]; if(lpT&&q&&Math.hypot(q.clientX-tx,q.clientY-ty)>10) lpCancel(); },{passive:false});
@@ -1147,6 +1147,11 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   function endMapWalk(){ const q=MAPQ; MAPQ=null; flow.classList.remove("mpick");
     if(window.BABLI_WEB&&BABLI_WEB.progress) try{ BABLI_WEB.progress(); }catch(e){}
     if(q&&q.after) q.after(); else keepPlace(); }
+  // a long press on a word: the same framed span over its paragraph, right where it is
+  function mapHere(a,u){ const f=flatOf(a,u), n=gw(f); if(!n) return;
+    if(BITE) endBite();
+    MAPQ={lo:0,hi:F.length,dir:1,title:"סיכום",after:null,n:1,pick:null,solo:true,s:[f,0],e:[f,n-1]};
+    keepPlace(); }
   // move a boundary by one sentence: which "s"|"e", d -1 earlier / +1 later
   function moveBound(which,d){ const q=MAPQ; if(!q) return;
     if(which==="e"){
