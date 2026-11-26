@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261126212512";</script>
+<script>window.BABLI_BUILD="20261126213158";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -159,6 +159,10 @@ button:disabled{opacity:.4;cursor:default}
 .mbtns span{display:block;font-family:var(--ui);font-size:.68em;font-weight:700;border:1.5px solid var(--accent);color:var(--accent);border-radius:8px;padding:.28em .8em;cursor:pointer}
 .mbtns .mnext{background:var(--accent);color:var(--paper)}
 .mbtns .mend{border-color:var(--line);color:var(--muted)}
+.mbnd{display:flex;align-items:center;gap:.35em;flex-wrap:wrap;font-family:var(--ui);font-size:.62em;font-weight:700;color:var(--muted);margin:.35em 0}
+.mbnd span[role=button]{border:1px solid var(--line);border-radius:7px;padding:.15em .6em;color:var(--accent);cursor:pointer}
+.mbnd span.on{background:var(--accent);color:var(--paper);border-color:var(--accent)}
+.mpick .w{outline:1px dashed color-mix(in srgb,var(--accent) 45%,transparent)}
 .dayend{display:flex;align-items:center;gap:.6em;margin-top:.7em;font-family:var(--ui,system-ui,sans-serif);font-size:.62em;font-weight:700;color:var(--gold);letter-spacing:.02em;white-space:nowrap}
 .dayend::before,.dayend::after{content:"";flex:1;border-top:2px dotted var(--gold)}
 .bcont-btn{display:block;width:max-content;font-family:var(--ui);font-size:.7em;font-weight:700;color:var(--ok);border:1.5px solid var(--ok);border-radius:8px;padding:.3em .9em;cursor:pointer}
@@ -444,16 +448,21 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
           +(s?'<span class="recap"><b>קודם למדת:</b> '+esc(s.x)+'</span>':"")+pre; }
       if(fi===BITE.to-1&&w1>=words.length){ el.classList.add("blast"); post='<span class="bbtns"><span class="bdone-btn" role="button">✓ סיימתי</span><span class="bcont-btn" role="button">בוא נמשיך ←</span></span>'; }
     }
-    // mapping walk: frame the paragraph, its summaries and the tools
-    if(MAPQ&&MAPQ.list[MAPQ.i]===fi){
-      el.classList.add("mapcur");
-      if(w0===0){ el.classList.add("mfirst"); const left=MAPQ.list.length-MAPQ.i-1;
-        pre='<span class="mtag"><span>✎ '+esc(MAPQ.title)+' · '+(MAPQ.i+1)+' מתוך '+MAPQ.list.length+(MAPQ.more?" (ועוד)":"")+'</span><span class="mend-x bx2" role="button" aria-label="סיום המיפוי">✕</span></span>'+pre; }
-      if(w1>=words.length){ el.classList.add("mlast");
-        const sm=sumsFor(a,u);
-        post+=(sm.length?'<span class="msums">'+sm.map((n,i)=>'<span class="msum1" data-i="'+i+'" role="button">'+esc(n.x)+'</span>').join("")+'</span>':"")
-          +'<span class="mbtns"><span class="mtitle" role="button">+ כותרת</span><span class="msumb" role="button">'+(sm.length?"+ המשך סיכום":"+ סיכום")+'</span>'
-          +'<span class="mnext" role="button">'+(MAPQ.i+1<MAPQ.list.length||MAPQ.more?"הבא ←":"סיום ✓")+'</span><span class="mend" role="button">סיום</span></span>'; }
+    // mapping walk: frame the span, its tools at the top and the bottom
+    if(MAPQ){ const q=MAPQ, ps=[fi,tokToG(a,u,w0)];
+      if(gw(fi)&&pv(ps)>=pv(q.s)&&pv(ps)<=pv(q.e)){
+        el.classList.add("mapcur");
+        const endTok=fi===q.e[0]?gToTok(a,u,q.e[1]+1):words.length;
+        const isFirst=fi===q.s[0]&&tokToG(a,u,w0)===q.s[1], isLast=fi===q.e[0]&&w1>=Math.min(endTok,words.length);
+        const bnd=(w,lbl)=>'<span class="mbnd">'+lbl+' <span class="mb" data-w="'+w+'" data-d="-1" role="button" aria-label="משפט אחד מוקדם יותר">▲</span><span class="mb" data-w="'+w+'" data-d="1" role="button" aria-label="משפט אחד מאוחר יותר">▼</span><span class="mpk'+(q.pick===w?" on":"")+'" data-w="'+w+'" role="button">☝ מילה</span></span>';
+        if(isFirst){ el.classList.add("mfirst"); const left=leftCount();
+          pre='<span class="mtag"><span>✎ '+esc(q.title)+' · קטע '+q.n+(left?" · עוד "+left+(left===1?" פסקה":" פסקאות"):"")+'</span><span class="mend-x bx2" role="button" aria-label="סיום המיפוי">✕</span></span>'+bnd("s","התחלה:")+pre; }
+        if(isLast){ el.classList.add("mlast");
+          const sa=F[q.s[0]], hiG=q.e[0]===q.s[0]?q.e[1]:1e9, sm=sumsFor(sa.a,sa.u).map((n,i)=>[n,i]).filter(([n])=>n.t==="s"&&(n.sg||0)>=q.s[1]&&(n.sg||0)<=hiG);
+          post+=bnd("e","סוף:")+(sm.length?'<span class="msums">'+sm.map(([n,i])=>'<span class="msum1" data-i="'+i+'" role="button">'+esc(n.x)+'</span>').join("")+'</span>':"")
+            +'<span class="mbtns"><span class="mtitle" role="button">+ כותרת</span><span class="msumb" role="button">+ סיכום</span>'
+            +'<span class="mnext" role="button">הבא '+(q.dir>0?"←":"(אחורה) ←")+'</span><span class="mend" role="button">סיום</span></span>'; }
+      }
     }
     // the end of today's reading
     const tp=ST.plan&&todayPortion();
@@ -490,6 +499,10 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       let lim=(stop&&cur.a===stop.a&&cur.u===stop.u)?stop.w:words.length;
       // a bite that starts inside a line starts a new piece there, so its frame opens at that word
       if(BITE&&BITE.fromG&&posFlat(cur)===BITE.from){ const bt=gToTok(cur.a,cur.u,BITE.fromG); if(cur.w<bt&&lim>bt) lim=bt; }
+      // a mapping span that starts or ends inside a paragraph starts a new piece there
+      if(MAPQ){ const fc=posFlat(cur);
+        for(const bt of [fc===MAPQ.s[0]&&MAPQ.s[1]>0?gToTok(cur.a,cur.u,MAPQ.s[1]):-1, fc===MAPQ.e[0]&&MAPQ.e[1]+1<gw(fc)?gToTok(cur.a,cur.u,MAPQ.e[1]+1):-1])
+          if(bt>0&&cur.w<bt&&lim>bt) lim=bt; }
       const after=()=>lim<words.length?{a:cur.a,u:cur.u,w:lim}:next(cur);
       const el=unitEl(cur.a,cur.u,cur.w,lim);
       sheet.appendChild(el);
@@ -629,12 +642,15 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(e.target.closest&&e.target.closest(".bdone-btn")){ finishBite(); return; }
     if(e.target.closest&&e.target.closest(".bcont-btn")){ finishBite(true); return; }
     if(e.target.closest&&e.target.closest(".bx")){ endBite(); keepPlace(); return; }
-    if(MAPQ&&e.target.closest){ const t=e.target, cur=F[MAPQ.list[MAPQ.i]];
-      if(t.closest(".mnext")){ mapStep(1); return; }
+    if(MAPQ&&e.target.closest){ const t=e.target, q=MAPQ, cur=F[q.s[0]];
+      if(t.closest(".mnext")){ mapStep(); return; }
       if(t.closest(".mend")||t.closest(".mend-x")){ endMapWalk(); return; }
-      if(t.closest(".mtitle")){ panelView="note"; renderNoteEditor(cur.a,cur.u,0,null,"b"); openPanel(); return; }
-      if(t.closest(".msumb")){ openSummary(cur.a,cur.u,0); return; }
-      const sx=t.closest(".msum1"); if(sx){ panelView="sum"; renderSummary(cur.a,cur.u,0,+sx.dataset.i); openPanel(); return; } }
+      const mb=t.closest(".mb"); if(mb){ moveBound(mb.dataset.w,+mb.dataset.d); return; }
+      const mk=t.closest(".mpk"); if(mk){ pickBound(mk.dataset.w); return; }
+      if(t.closest(".mtitle")){ panelView="note"; renderNoteEditor(cur.a,cur.u,q.s[1],null,"b"); openPanel(); return; }
+      if(t.closest(".msumb")){ spanSummary(); return; }
+      const sx=t.closest(".msum1"); if(sx){ panelView="sum"; renderSummary(cur.a,cur.u,0,+sx.dataset.i); openPanel(); return; }
+      if(q.pick){ const w=wordOf(t); if(w){ setBoundAt(flatOf(w.a,w.u),w.g); return; } } }
     const r=e.target.closest&&e.target.closest(".ref");
     if(r){ openQuote(+r.dataset.q); return; }
     const w=wordOf(e.target); if(w) openWord(w.a,w.u,w.g);
@@ -710,7 +726,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   /* ---------- the learner's own notes on words ---------- */
   // NOTES: "a:u:g" -> [{t:"q"|"n"|"b", x:text, d:day}]; g = index of the Gemara word in the unit (Steinsaltz excluded)
   let NOTES={}, NOTE_M={}, NB=new Map();
-  function indexNotes(){ NB=new Map(); for(const [k,arr] of Object.entries(NOTES)){ if(!arr||!arr.length) continue;
+  let NOTESV=0;
+  function indexNotes(){ NOTESV++; NB=new Map(); for(const [k,arr] of Object.entries(NOTES)){ if(!arr||!arr.length) continue;
     const [a,u,g]=k.split(":").map(Number), uk=a+":"+u; if(!NB.has(uk)) NB.set(uk,new Map()); NB.get(uk).set(g,arr); } }
   const notesAt=(a,u)=>NB.get(a+":"+u)||null;
   const notesFor=(a,u,g)=>NOTES[a+":"+u+":"+g]||[];
@@ -791,18 +808,18 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   const sumsFor=(a,u)=>NOTES[a+":"+u+":-1"]||[];
   function paraHead(a,u){ const t=gemaraTokens(a,u); return t.slice(0,9).join(" ")+(t.length>9?" …":""); }
   function openSummary(a,u,g){ panelView="sum"; renderSummary(a,u,g,null); openPanel(); }
-  function renderSummary(a,u,g,idx){
+  function renderSummary(a,u,g,idx,span){
     panel.innerHTML="";
     const list=sumsFor(a,u), cur=idx!=null?list[idx]:null;
     panel.append(h("h2",{id:"panelTitle"},cur?"עריכת סיכום":list.length?"המשך סיכום לפסקה":"סיכום לפסקה"));
     panel.append(h("div",{class:"nctx"},paraHead(a,u),h("span",{class:"nloc"},"  · "+amudName(a))));
     list.forEach((n,i)=>{ if(i===idx) return; panel.append(h("div",{class:"sumprev"},n.x,
-      h("div",{class:"row"},h("button",{class:"ghost",onclick:()=>renderSummary(a,u,g,i)},"עריכה")))); });
+      h("div",{class:"row"},h("button",{class:"ghost",onclick:()=>renderSummary(a,u,g,i,span)},"עריכה")))); });
     const ta=h("textarea",{id:"noteIn",rows:"4",dir:"rtl",placeholder:list.length&&!cur?"ההמשך ייכנס מתחת למה שכתבת קודם":"הקלד או הכתב את הסיכום של הפסקה"});
     ta.value=cur?cur.x:"";
     const key=a+":"+u+":-1";
     const save=()=>{ const x=ta.value.trim(), arr=[...list];
-      if(cur){ if(x) arr[idx]={t:"s",x,d:cur.d||today()}; else arr.splice(idx,1); } else if(x) arr.push({t:"s",x,d:today()});
+      if(cur){ if(x) arr[idx]={...cur,t:"s",x,d:cur.d||today()}; else arr.splice(idx,1); } else if(x) arr.push({t:"s",x,d:today(),...(span||{})});
       if(arr.length) NOTES[key]=arr; else delete NOTES[key];
       storeNotes(a); closePanel(); if(MAPQ) keepPlace(); };
     ta.addEventListener("keydown",e=>{ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){ e.preventDefault(); save(); } });
@@ -810,7 +827,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     let armed=false;
     const del=cur?h("button",{class:"ghost",onclick:()=>{ if(!armed){ armed=true; del.textContent="לחץ שוב למחיקה"; return; } ta.value=""; save(); }},"מחיקה"):null;
     panel.append(h("div",{class:"row"},h("button",{class:"primary",onclick:save},"שמירה"),del,
-      h("button",{class:"ghost spacer",onclick:()=>{ cur?renderSummary(a,u,g,null):closePanel(); }},"ביטול")));
+      h("button",{class:"ghost spacer",onclick:()=>{ cur?renderSummary(a,u,g,null,span):closePanel(); }},"ביטול")));
     panel.append(h("p",{class:"note"},"סיכומים לא מוצגים בטקסט; רואים אותם במפה, מתחת לכותרת שמעליהם."));
     setTimeout(()=>{ try{ ta.focus(); }catch(e){} },30);
   }
@@ -1076,29 +1093,79 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   /* ---------- mapping: titles for sugyot, summaries for paragraphs, over what was just learned ---------- */
   const MAPN=4;
   const plainText=(a,u)=>A[a][u][1].replace(/[\u2063\u2064\uE000-\uE003]/g,"");
-  // a paragraph is mapped once it has a summary (a title alone is not enough)
-  function isMapped(a,u){ return sumsFor(a,u).length>0; }
+  /* positions are [flat unit, Gemara word]; a summary covers a span of them:
+     {t:"s",x,d} covers its whole paragraph (key a:u:-1); with sg/ea/eu/eg it covers from word sg of that paragraph to word eg of paragraph (ea,eu) */
+  const GWC=new Map();
+  function gw(f){ if(GWC.has(f)) return GWC.get(f); const x=F[f]; let n=0; if(A[x.a][x.u][0]!=="h") n=gemaraCounts(x.a,x.u).filter(Boolean).length; GWC.set(f,n); return n; }
+  const pv=P=>P[0]*1e5+P[1];
+  let COV=null, COVV=-1;
+  function cov(){ if(COV&&COVV===NOTESV) return COV; const out=[];
+    for(const [k,arr] of Object.entries(NOTES)){ const [a,u,g]=k.split(":").map(Number); if(g!==-1||!arr) continue; const f=flatOf(a,u); if(f==null) continue;
+      for(const n of arr){ if(n.t!=="s") continue; const ef=n.ea!=null?flatOf(n.ea,n.eu):f;
+        out.push([pv([f,n.sg||0]), n.ea!=null?pv([ef,n.eg]):pv([f,Math.max(0,gw(f)-1)])]); } }
+    out.sort((x,y)=>x[0]-y[0]); COV=out; COVV=NOTESV; return out; }
+  function covered(P){ const v=pv(P); for(const [s0,e0] of cov()){ if(s0>v) break; if(e0>=v) return true; } return false; }
+  // a paragraph is mapped once every word of it is inside some summary (a title alone is not enough)
+  function isMapped(a,u){ const f=flatOf(a,u), n=gw(f); if(!n) return true; for(let g=0;g<n;g++) if(!covered([f,g])) return false; return true; }
+  function nextP(P){ let [f,g]=P; if(g+1<gw(f)) return [f,g+1]; for(f=f+1;f<F.length;f++) if(gw(f)) return [f,0]; return null; }
+  function prevP(P){ let [f,g]=P; if(g>0) return [f,g-1]; for(f=f-1;f>=0;f--) if(gw(f)) return [f,gw(f)-1]; return null; }
+  function gwText(P){ const x=F[P[0]], t=tokens(x.a,x.u)[gToTok(x.a,x.u,P[1])]||""; return plain(t).replace(/[\u2063\u2064\uE000-\uE003]/g,""); }
+  const sentEnd=P=>P[1]===gw(P[0])-1||/[.?!][\]")׳'”]*$/.test(gwText(P));
+  function firstUncovered(P,hiF){ for(let q=P;q&&q[0]<hiF;q=nextP(q)) if(!covered(q)) return q; return null; }
+  function lastUncovered(P,loF){ for(let q=P;q&&q[0]>=loF;q=prevP(q)) if(!covered(q)) return q; return null; }
   function unmappedToday(){ const p=ST.plan&&ST.day&&ST.day.d===dayNum()?ST.day:null; if(!p) return 0; let n=0;
     for(let f=p.from;f<Math.min(ST.pos,F.length);f++){ const x=F[f]; if(A[x.a][x.u][0]!=="h"&&!isMapped(x.a,x.u)) n++; } return n; }
   /* mapping walk: go paragraph by paragraph in the text itself, framed, with "+ כותרת", "+ סיכום", "הבא" */
   var MAPQ=null;
   function unmappedIn(from,to){ const out=[]; for(let f=from;f<Math.min(to,F.length);f++){ const x=F[f]; if(A[x.a][x.u][0]!=="h"&&!isMapped(x.a,x.u)) out.push(f); } return out; }
-  function startMapWalk(list,title,after){
-    if(!list.length){ after&&after(); return false; }
+  // the span offered around an uncovered word: the uncovered run of its paragraph
+  function spanAt(P){ let s0=P, e0=P, q;
+    while((q=prevP(s0))&&q[0]===P[0]&&!covered(q)) s0=q;
+    while((q=nextP(e0))&&q[0]===P[0]&&!covered(q)) e0=q;
+    return {s:s0,e:e0}; }
+  // dir 1: forward over [lo,hi); dir -1: backward from hi down to lo (newest first)
+  function startMapWalk(lo,hi,dir,title,after){
+    const P=dir>0?firstUncovered([lo,0],hi):lastUncovered(prevP([hi,0])||[0,0],lo);
+    if(!P){ after&&after(); return false; }
     closePanel(); if(BITE) endBite();
-    MAPQ={list,i:0,title,after}; gotoMap(); return true;
+    MAPQ={lo,hi,dir,title,after,n:1,pick:null,...spanAt(P)}; gotoMap(); return true;
   }
-  // show the paragraph with a little of what comes before it, so it is read in context
-  function gotoMap(){ const f=MAPQ.list[MAPQ.i], pv=f>0?F[f-1]:null, x=F[f];
-    if(pv&&A[pv.a][pv.u][0]!=="h"){
-      layoutAt({a:pv.a,u:pv.u,w:0});
-      // keep the paragraph before only if the whole paragraph, with its tools, still fits on this screen
+  function leftCount(){ if(!MAPQ) return 0; const q=MAPQ; let n=0;
+    if(q.dir>0){ for(let f=q.e[0]+1;f<Math.min(q.hi,F.length);f++){ const x=F[f]; if(gw(f)&&!isMapped(x.a,x.u)) n++; } }
+    else { for(let f=q.s[0]-1;f>=q.lo;f--){ const x=F[f]; if(gw(f)&&!isMapped(x.a,x.u)) n++; } }
+    return n; }
+  // show the span with a little of what comes before it, so it is read in context
+  function gotoMap(){ const f=MAPQ.s[0], x=F[f], pvU=f>0?F[f-1]:null;
+    if(MAPQ.s[1]===0&&pvU&&A[pvU.a][pvU.u][0]!=="h"){
+      layoutAt({a:pvU.a,u:pvU.u,w:0});
       const sh=sheets()[pi]; if(sh&&sh.querySelector(".u.mapcur.mlast")) return; }
     layoutAt({a:x.a,u:x.u,w:0}); }
-  function mapStep(d){ if(!MAPQ) return; const i=MAPQ.i+d; if(i>=MAPQ.list.length) return endMapWalk(); MAPQ.i=Math.max(0,i); gotoMap(); }
-  function endMapWalk(){ const q=MAPQ; MAPQ=null;
+  function mapStep(){ if(!MAPQ) return; const q=MAPQ;
+    const P=q.dir>0?firstUncovered(nextP(q.e)||[F.length,0],q.hi):lastUncovered(prevP(q.s)||[-1,0],q.lo);
+    if(!P) return endMapWalk();
+    Object.assign(q,spanAt(P),{n:q.n+1,pick:null}); gotoMap(); }
+  function endMapWalk(){ const q=MAPQ; MAPQ=null; flow.classList.remove("mpick");
     if(window.BABLI_WEB&&BABLI_WEB.progress) try{ BABLI_WEB.progress(); }catch(e){}
     if(q&&q.after) q.after(); else keepPlace(); }
+  // move a boundary by one sentence: which "s"|"e", d -1 earlier / +1 later
+  function moveBound(which,d){ const q=MAPQ; if(!q) return;
+    if(which==="e"){
+      if(d>0){ let P=nextP(q.e); if(!P) return; while(!sentEnd(P)){ const n=nextP(P); if(!n) break; P=n; } q.e=P; }
+      else { let P=prevP(q.e); while(P&&pv(P)>=pv(q.s)&&!sentEnd(P)) P=prevP(P); if(P&&pv(P)>=pv(q.s)) q.e=P; else return toast("זה כבר המשפט הראשון בקטע"); }
+    } else {
+      if(d<0){ let P=prevP(q.s); if(!P) return; for(;;){ const b=prevP(P); if(!b||sentEnd(b)) break; P=b; } q.s=P; }
+      else { let P=q.s; while(P&&pv(P)<pv(q.e)&&!sentEnd(P)) P=nextP(P); P=P&&nextP(P); if(P&&pv(P)<=pv(q.e)) q.s=P; else return toast("זה כבר המשפט האחרון בקטע"); }
+    }
+    keepPlace(); }
+  function pickBound(which){ const q=MAPQ; q.pick=q.pick===which?null:which; flow.classList.toggle("mpick",!!q.pick);
+    if(q.pick) toast(which==="s"?"לחץ על המילה שבה הקטע יתחיל":"לחץ על המילה שבה הקטע ייגמר",null,null,4000); keepPlace(); }
+  function setBoundAt(f,g){ const q=MAPQ, P=[f,g];
+    if(q.pick==="s"){ q.s=P; if(pv(q.e)<pv(P)) q.e=P; } else { q.e=P; if(pv(q.s)>pv(P)) q.s=P; }
+    q.pick=null; flow.classList.remove("mpick"); keepPlace(); }
+  // summary of the span (kept at its first paragraph, with where it ends)
+  function spanSummary(){ const q=MAPQ, sa=F[q.s[0]], ea=F[q.e[0]];
+    const span=(q.s[1]===0&&q.e[0]===q.s[0]&&q.e[1]===gw(q.s[0])-1)?{}:{sg:q.s[1],ea:ea.a,eu:ea.u,eg:q.e[1]};
+    panelView="sum"; renderSummary(sa.a,sa.u,0,null,span); openPanel(); }
   // after every fourth bite: an invitation (skippable) to map those bites, in the text
   function openMapping(r,after){
     const list=unmappedIn(r.from,r.to);
@@ -1106,7 +1173,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     panelView="mapping"; panel.innerHTML="";
     panel.append(h("h2",{id:"panelTitle"},"רגע של מיפוי"),
       h("div",{},"ב־"+MAPN+" הביסים האחרונים יש "+list.length+(list.length===1?" פסקה":" פסקאות")+" בלי סיכום. נעבור עליהן בטקסט, אחת אחת: כותרת לסוגיה, סיכום לפסקה."),
-      h("div",{class:"row"},h("button",{class:"primary",onclick:()=>startMapWalk(list,"מיפוי "+MAPN+" הביסים",after)},"למפות עכשיו"),
+      h("div",{class:"row"},h("button",{class:"primary",onclick:()=>startMapWalk(r.from,r.to,1,"מיפוי "+MAPN+" הביסים",after)},"למפות עכשיו"),
         h("button",{class:"ghost spacer",onclick:()=>{ closePanel(); after&&after(); }},"דילוג")));
     openPanel();
   }
@@ -1115,9 +1182,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(!ST.plan){ const k=await findPlanTr(); if(k&&k!==TR.key){ await loadTractate(k,null); try{ await storeP; }catch(e){} } }
     if(storeP){ try{ await storeP; }catch(e){} }
     if(!ST.plan){ toast("אין עדיין תוכנית לימוד, אז אין מה להשלים."); return; }
-    const list=unmappedIn(0,ST.pos).reverse();
-    if(!list.length){ toast("✓ כל מה שלמדת כבר ממופה"); return; }
-    startMapWalk(list,"השלמת מיפוי");
+    if(!startMapWalk(0,ST.pos,-1,"השלמת מיפוי")) toast("✓ כל מה שלמדת כבר ממופה");
   }
   async function openEveningMap(){
     if(!ST.plan){ const k=await findPlanTr(); if(k&&k!==TR.key){ await loadTractate(k,null); try{ await storeP; }catch(e){} } }
@@ -1127,9 +1192,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       // nothing read in the app today (Motzaei Shabbat: the learning was from a book): first mark where you got to
       const f=F[ST.pos]; if(f) layoutAt({a:f.a,u:f.u,w:0});
       toast("סמן קודם עד היכן הגעת: לחיצה על המילה ← \"עצרתי כאן\". אחר כך \"מיפוי של היום\" במפה יעבור על מה שלמדת.",null,null,9000); return; }
-    const list=unmappedIn(p.from,ST.pos);
-    if(!list.length){ toast("✓ כל מה שלמדת היום כבר ממופה"); return; }
-    startMapWalk(list,"מיפוי של היום");
+    if(!startMapWalk(p.from,ST.pos,1,"מיפוי של היום")) toast("✓ כל מה שלמדת היום כבר ממופה");
   }
   // finishing the whole day at once (reading straight through, without bites)
   function finishReading(){
@@ -1385,6 +1448,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     const t=TRACTS.find(x=>x.key===key)||TRACTS[0];
     if(A){ clearTimeout(saveT); try{ await flush(); }catch(e){} }
     TR=t; lsSet("tr",t.key); fillTrSel();
+    GWC.clear(); MAPQ=null; flow.classList.remove("mpick");
     A=null; Z=null; RZ=null; C=null; SG=null; dbBase=null; portion=null; BITE=null; flow.classList.remove("biteon"); current=-1; toks.clear();
     closePanel();
     flow.innerHTML='<div class="status">טוען את מסכת '+t.he+'…</div>';
