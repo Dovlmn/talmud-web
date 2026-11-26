@@ -120,6 +120,13 @@ button:disabled{opacity:.4;cursor:default}
 .recap{display:block;font-family:var(--ui);font-size:.68em;line-height:1.5;color:var(--ink);background:var(--soft);border-radius:8px;padding:.45em .7em;margin-bottom:.5em;white-space:pre-wrap}
 .recap b{color:var(--accent)}
 .bbtns{display:flex;gap:.5em;flex-wrap:wrap;margin-top:.5em}
+/* summary view: a mapped span shows as a card with its titles and summaries; a tap opens the text */
+.u.sumcard{font-family:var(--ui);font-size:.82em;line-height:1.5;border:1.5px solid color-mix(in srgb,var(--ok) 55%,var(--line));border-inline-start:5px solid var(--ok);
+  border-radius:10px;padding:.5em .8em;background:color-mix(in srgb,var(--ok) 7%,transparent);cursor:pointer;break-inside:avoid}
+.sumcard .sct{display:block;font-weight:700;color:var(--accent);font-size:1.05em}
+.sumcard .scs{display:block;white-space:pre-wrap;margin-top:.2em}
+.sumcard .scw{display:block;font-size:.75em;color:var(--muted);margin-top:.3em}
+.sumback{display:block;width:max-content;font-family:var(--ui);font-size:.6em;font-weight:700;color:var(--ok);border:1px solid var(--ok);border-radius:999px;padding:.1em .7em;margin-bottom:.3em;cursor:pointer}
 /* mapping in the text: the paragraph being mapped, with its tools */
 .u.mapcur{border-inline:2px solid var(--accent);padding-inline:.6em;background:color-mix(in srgb,var(--accent) 6%,transparent)}
 .u.mapcur.mfirst{border-top:2px solid var(--accent);border-radius:12px 12px 0 0;padding-top:.45em}
@@ -252,6 +259,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       <button id="todayBtn" title="מעבר לקריאה של היום">היום<span class="badge" id="badge" hidden></span></button>
       <button id="mapBtn" aria-haspopup="dialog">מפה</button>
       <button id="cmpBtn" aria-pressed="false" title="הרבה טקסט במסך אחד, לחזרה ולכתיבת כותרות">צפוף</button>
+      <button id="sumvBtn" aria-pressed="false" title="כותרות וסיכומים במקום הטקסט שכבר מופה">תקציר</button>
       <button id="stzBtn" aria-pressed="false" title="ביאור הרב שטיינזלץ בתוך הטקסט">שטיינזלץ</button>
       <button id="rashiBtn" aria-pressed="false" title="פירוש רש״י בתוך הטקסט">רש״י</button>
       <button class="icon" id="bmBtn" aria-label="למילה שעצרתי בה" title="למילה שעצרתי בה"><svg viewBox="0 0 14 16" aria-hidden="true"><path d="M1 0h12v16l-6-4.5L1 16z"/></svg></button>
@@ -439,6 +447,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
           +(s?'<span class="recap"><b>קודם למדת:</b> '+esc(s.x)+'</span>':"")+pre; }
       if(fi===BITE.to-1&&w1>=words.length){ el.classList.add("blast"); post='<span class="bbtns"><span class="bdone-btn" role="button">✓ סיימתי</span><span class="bcont-btn" role="button">בוא נמשיך ←</span></span>'; }
     }
+    // summary view: an opened span begins with a way back to its card
+    if(sumOn()&&gw(fi)){ const v=pv([fi,tokToG(a,u,w0)]), sp=spans().find(x=>x.sv===v); if(sp&&EXP.has(sp.id)) pre='<span class="sumback" data-sp="'+sp.id+'" role="button">▲ חזרה לסיכום</span>'+pre; }
     // mapping walk: frame the span, its tools at the top and the bottom
     if(MAPQ){ const q=MAPQ, ps=[fi,tokToG(a,u,w0)];
       if(gw(fi)&&pv(ps)>=pv(q.s)&&pv(ps)<=pv(q.e)){
@@ -490,6 +500,13 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       let lim=(stop&&cur.a===stop.a&&cur.u===stop.u)?stop.w:words.length;
       // a bite that starts inside a line starts a new piece there, so its frame opens at that word
       if(BITE&&BITE.fromG&&posFlat(cur)===BITE.from){ const bt=gToTok(cur.a,cur.u,BITE.fromG); if(cur.w<bt&&lim>bt) lim=bt; }
+      // summary view: a collapsed span is one card, then the text goes on after it
+      if(sumOn()&&gw(posFlat(cur))){ const fc=posFlat(cur), v=pv([fc,tokToG(cur.a,cur.u,cur.w)]), sp=spans().find(x=>x.sv===v);
+        if(sp&&!EXP.has(sp.id)){ const el=cardEl(sp); sheet.appendChild(el);
+          if(fits(sheet,el)){ cur=afterSpan(sp); continue; }
+          sheet.removeChild(el); if(!sheet.childNodes.length){ sheet.appendChild(el); return afterSpan(sp); } return cur; }
+        for(const x of spans()){ for(const bt of [fc===x.s[0]&&x.s[1]>0?gToTok(cur.a,cur.u,x.s[1]):-1, fc===x.e[0]&&x.e[1]+1<gw(fc)?gToTok(cur.a,cur.u,x.e[1]+1):-1])
+          if(bt>0&&cur.w<bt&&lim>bt) lim=bt; } }
       // a mapping span that starts or ends inside a paragraph starts a new piece there
       if(MAPQ){ const fc=posFlat(cur);
         for(const bt of [fc===MAPQ.s[0]&&MAPQ.s[1]>0?gToTok(cur.a,cur.u,MAPQ.s[1]):-1, fc===MAPQ.e[0]&&MAPQ.e[1]+1<gw(fc)?gToTok(cur.a,cur.u,MAPQ.e[1]+1):-1])
@@ -577,6 +594,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     const f=F[+el.dataset.f]; return {a:f.a,u:f.u,g:tokToG(f.a,f.u,+(el.dataset.w||0))}; }
   let bufT=null;
   function layoutAt(t){
+    if(sumOn()&&A){ const f=flatOf(t.a,t.u), sp=f!=null&&gw(f)?spanAtV(pv([f,tokToG(t.a,t.u,t.w||0)])):null;
+      if(sp&&!EXP.has(sp.id)){ const x=F[sp.s[0]]; t={a:x.a,u:x.u,w:gToTok(x.a,x.u,sp.s[1])}; } }
     flow.innerHTML=""; probe=null; toks.clear(); measure();
     head={a:t.a,u:t.u,w:t.w}; tail={a:t.a,u:t.u,w:t.w}; pi=0;
     for(let i=0;i<2&&tail;i++) append();
@@ -633,6 +652,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(e.target.closest&&e.target.closest(".bdone-btn")){ finishBite(); return; }
     if(e.target.closest&&e.target.closest(".bcont-btn")){ finishBite(true); return; }
     if(e.target.closest&&e.target.closest(".bx")){ endBite(); keepPlace(); return; }
+    const sc=e.target.closest&&e.target.closest(".sumcard"); if(sc){ EXP.add(sc.dataset.sp); keepPlace(); return; }
+    const sb=e.target.closest&&e.target.closest(".sumback"); if(sb){ EXP.delete(sb.dataset.sp); keepPlace(); return; }
     if(MAPQ&&e.target.closest){ const t=e.target, q=MAPQ, cur=F[q.s[0]];
       if(t.closest(".mnext")){ mapStep(); return; }
       if(t.closest(".mend")||t.closest(".mend-x")){ endMapWalk(); return; }
@@ -1108,6 +1129,27 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
         out.push([pv([f,n.sg||0]), n.ea!=null?pv([ef,n.eg]):pv([f,Math.max(0,gw(f)-1)]), a, u, i, f, n.ea!=null?ef:f, n.ea!=null?n.eg:Math.max(0,gw(f)-1)]); }); }
     out.sort((x,y)=>x[0]-y[0]); COV=out; COVV=NOTESV; return out; }
   function covered(P){ const v=pv(P); for(const [s0,e0] of cov()){ if(s0>v) break; if(e0>=v) return true; } return false; }
+  /* summary view */
+  let SUMV=false, EXP=new Set(), SPANS=null, SPANSV=-1;
+  const sumOn=()=>SUMV&&!BITE&&!MAPQ;
+  // the outermost summarized spans, without overlaps
+  function spans(){ if(SPANS&&SPANSV===NOTESV) return SPANS;
+    const c=cov().slice().sort((x,y)=>x[0]-y[0]||(y[1]-y[0])-(x[1]-x[0])), out=[]; let last=-1;
+    for(const x of c){ if(x[0]<=last) continue; out.push({id:x[0]+"-"+x[1],s:[x[5],x[0]%1e5],e:[x[6],x[7]],sv:x[0],ev:x[1]}); last=x[1]; }
+    SPANS=out; SPANSV=NOTESV; return out; }
+  const spanAtV=v=>spans().find(sp=>sp.sv<=v&&sp.ev>=v)||null;
+  function cardEl(sp){ const el=document.createElement("div"), F0=F[sp.s[0]], F1=F[sp.e[0]];
+    el.className="u sumcard"; el.dataset.a=F0.a; el.dataset.f=sp.s[0]; el.dataset.w=gToTok(F0.a,F0.u,sp.s[1]); el.dataset.sp=sp.id;
+    let html="";
+    for(let f=sp.s[0];f<=sp.e[0];f++){ const x=F[f], m=notesAt(x.a,x.u); if(!m) continue;
+      for(const [g,arr] of [...m].sort((p,q)=>p[0]-q[0])){ if(g<0) continue; const v=pv([f,g]); if(v<sp.sv||v>sp.ev) continue;
+        arr.forEach(n=>{ if(n.t==="b") html+='<span class="sct">'+esc(n.x)+'</span>'; }); } }
+    for(const c of cov()) if(c[0]>=sp.sv&&c[1]<=sp.ev){ const n=NOTES[c[2]+":"+c[3]+":-1"][c[4]]; html+='<span class="scs">'+esc(n.x)+'</span>'; }
+    html+='<span class="scw">'+amudName(F0.a)+(F1.a!==F0.a?" – "+amudName(F1.a):"")+' · לחיצה לפתיחת הטקסט</span>';
+    el.innerHTML=html; return el; }
+  function afterSpan(sp){ const [f,g]=sp.e, x=F[f]; return g+1<gw(f)?{a:x.a,u:x.u,w:gToTok(x.a,x.u,g+1)}:next({a:x.a,u:x.u,w:0}); }
+  function setSumv(on){ SUMV=on; EXP.clear(); $("sumvBtn").setAttribute("aria-pressed",String(on)); lsSet("sumv",on); }
+  $("sumvBtn").onclick=()=>keepPlace(()=>setSumv(!SUMV));
   // a paragraph is mapped once every word of it is inside some summary (a title alone is not enough)
   function isMapped(a,u){ const f=flatOf(a,u), n=gw(f); if(!n) return true; for(let g=0;g<n;g++) if(!covered([f,g])) return false; return true; }
   function nextP(P){ let [f,g]=P; if(g+1<gw(f)) return [f,g+1]; for(f=f+1;f<F.length;f++) if(gw(f)) return [f,0]; return null; }
@@ -1463,7 +1505,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   }
 
   /* ---------- start ---------- */
-  setCompact(!!lsGet("compact",false)); setSize(lsGet("px",innerWidth<480?19:20)); { const li=lsGet("lh",null); if(li!=null) setLine(li); else setDense(!!lsGet("dense",false)); } setJustify(!!lsGet("justify",false)); setRefs(lsGet("refs",true)!==false); niqqud=lsGet("niqqud",true)!==false; setFont(fontKey);
+  setCompact(!!lsGet("compact",false)); setSumv(!!lsGet("sumv",false)); setSize(lsGet("px",innerWidth<480?19:20)); { const li=lsGet("lh",null); if(li!=null) setLine(li); else setDense(!!lsGet("dense",false)); } setJustify(!!lsGet("justify",false)); setRefs(lsGet("refs",true)!==false); niqqud=lsGet("niqqud",true)!==false; setFont(fontKey);
   if(lsGet("stz",false)) setStz(true); else if(lsGet("rashi",false)) setRashi(true);
   setRscript(rscript);
   const SEDER={"Seder Zeraim":"סדר זרעים","Seder Moed":"סדר מועד","Seder Nashim":"סדר נשים","Seder Nezikin":"סדר נזיקין","Seder Kodashim":"סדר קדשים","Seder Tahorot":"סדר טהרות"};
