@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261126220422";</script>
+<script>window.BABLI_BUILD="20261126222121";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -170,6 +170,10 @@ button:disabled{opacity:.4;cursor:default}
 .mapedge,.mapedge *{cursor:ns-resize!important}
 .mbnd .mdrag{display:inline-block;color:var(--paper)!important;background:var(--accent);border-color:var(--accent)!important;cursor:grab;touch-action:none;user-select:none}
 .mdrag:active{cursor:grabbing}
+/* while dragging an edge: the frame steps aside and the words of the new span light up */
+#flow.mdragging .u.mapcur{background:none;border-color:transparent}
+#flow.mdragging .u.mapcur::before,#flow.mdragging .u.mapcur::after{opacity:0}
+.w.mprev{background:color-mix(in srgb,var(--accent) 22%,transparent);border-radius:0;box-shadow:0 -2px 0 color-mix(in srgb,var(--accent) 22%,transparent),0 2px 0 color-mix(in srgb,var(--accent) 22%,transparent)}
 .w.mhov{background:var(--accent)!important;color:var(--paper)!important;border-radius:3px}
 .mpick .w{outline:1px dashed color-mix(in srgb,var(--accent) 45%,transparent)}
 .dayend{display:flex;align-items:center;gap:.6em;margin-top:.7em;font-family:var(--ui,system-ui,sans-serif);font-size:.62em;font-weight:700;color:var(--gold);letter-spacing:.02em;white-space:nowrap}
@@ -1186,11 +1190,20 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(u.classList.contains("mfirst")&&e.clientY-r.top<z) return "s";
     if(u.classList.contains("mlast")&&r.bottom-e.clientY<z) return "e"; return null; }
   flow.addEventListener("pointerdown",e=>{ const d=e.target.closest&&e.target.closest(".mdrag"), w=d?d.dataset.w:edgeAt(e); if(!w) return;
-    e.preventDefault(); e.stopPropagation(); DRAG={w,hov:null}; try{ flow.setPointerCapture(e.pointerId); }catch(er){} });
+    e.preventDefault(); e.stopPropagation();
+    // the words on screen with their positions, to light up the span as it changes
+    const ws=[...(sheets()[pi]||flow).querySelectorAll(".w")].map(el=>{ const u=el.closest(".u[data-f]"); return u?{el,v:pv([+u.dataset.f,+el.dataset.g])}:null; }).filter(Boolean);
+    DRAG={w,hov:null,ws}; flow.classList.add("mdragging"); preview(null);
+    try{ flow.setPointerCapture(e.pointerId); }catch(er){} });
+  function preview(hv){ const q=MAPQ; if(!DRAG||!q) return; let s0=pv(q.s), e0=pv(q.e);
+    if(hv!=null){ if(DRAG.w==="s"){ s0=hv; if(e0<s0) e0=s0; } else { e0=hv; if(s0>e0) s0=e0; } }
+    for(const x of DRAG.ws) x.el.classList.toggle("mprev",x.v>=s0&&x.v<=e0); }
   flow.addEventListener("pointermove",e=>{ if(DRAG||e.pointerType==="touch") return; flow.classList.toggle("mapedge",!!edgeAt(e)); });
   flow.addEventListener("pointermove",e=>{ if(!DRAG) return; const el=document.elementFromPoint(e.clientX,e.clientY), w=el&&el.closest&&el.closest(".w");
-    if(w!==DRAG.hov){ if(DRAG.hov) DRAG.hov.classList.remove("mhov"); DRAG.hov=w&&w.closest(".u[data-f]")?w:null; if(DRAG.hov) DRAG.hov.classList.add("mhov"); } });
+    if(w!==DRAG.hov){ if(DRAG.hov) DRAG.hov.classList.remove("mhov"); DRAG.hov=w&&w.closest(".u[data-f]")?w:null; if(DRAG.hov) DRAG.hov.classList.add("mhov");
+      const x=DRAG.hov&&DRAG.ws.find(y=>y.el===DRAG.hov); preview(x?x.v:null); } });
   const dragUp=()=>{ if(!DRAG) return; const d=DRAG; DRAG=null; dragEnd=performance.now();
+    flow.classList.remove("mdragging"); d.ws.forEach(x=>x.el.classList.remove("mprev"));
     if(d.hov){ d.hov.classList.remove("mhov"); const t=wordOf(d.hov); if(t&&MAPQ){ MAPQ.pick=d.w; setBoundAt(flatOf(t.a,t.u),t.g); } } };
   flow.addEventListener("pointerup",dragUp); flow.addEventListener("pointercancel",dragUp);
   // move a boundary by one sentence: which "s"|"e", d -1 earlier / +1 later
