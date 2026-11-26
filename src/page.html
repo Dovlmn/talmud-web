@@ -1018,8 +1018,8 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   /* ---------- mapping: titles for sugyot, summaries for paragraphs, over what was just learned ---------- */
   const MAPN=4;
   const plainText=(a,u)=>A[a][u][1].replace(/[\u2063\u2064\uE000-\uE003]/g,"");
-  function isMapped(a,u){ if(sumsFor(a,u).length) return true; const m=notesAt(a,u); if(!m) return false;
-    for(const [g,arr] of m) if(g>=0&&arr.some(n=>n.t==="b")) return true; return false; }
+  // a paragraph is mapped once it has a summary (a title alone is not enough)
+  function isMapped(a,u){ return sumsFor(a,u).length>0; }
   function unmappedToday(){ const p=ST.plan&&ST.day&&ST.day.d===dayNum()?ST.day:null; if(!p) return 0; let n=0;
     for(let f=p.from;f<Math.min(ST.pos,F.length);f++){ const x=F[f]; if(A[x.a][x.u][0]!=="h"&&!isMapped(x.a,x.u)) n++; } return n; }
   // range {from,to} of flat units; evening: only paragraphs without a summary
