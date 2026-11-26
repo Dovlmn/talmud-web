@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261126224631";</script>
+<script>window.BABLI_BUILD="20261126224751";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -148,11 +148,11 @@ button:disabled{opacity:.4;cursor:default}
 .recap b{color:var(--accent)}
 .bbtns{display:flex;gap:.5em;flex-wrap:wrap;margin-top:.5em}
 /* summary view: a mapped span shows as a card with its titles and summaries; a tap opens the text */
-.u.sumcard{font-family:var(--ui);font-size:.82em;line-height:1.5;border:1.5px solid color-mix(in srgb,var(--ok) 55%,var(--line));border-inline-start:5px solid var(--ok);
-  border-radius:10px;padding:.5em .8em;background:color-mix(in srgb,var(--ok) 7%,transparent);cursor:pointer;break-inside:avoid}
-.sumcard .sct{display:block;font-weight:700;color:var(--accent);font-size:1.05em}
-.sumcard .scs{display:block;white-space:pre-wrap;margin-top:.2em}
-.sumcard .scw{display:block;font-size:.75em;color:var(--muted);margin-top:.3em}
+.u.sumcard{cursor:pointer}
+.sumcard .sct{display:block;font-weight:700;color:var(--accent);margin-top:.2em}
+.sumcard .scs{white-space:pre-wrap}
+.sumcard .scs+.scs::before{content:" "}
+.sumcard .scw{font-family:var(--ui);font-size:.6em;font-weight:600;color:var(--muted);white-space:nowrap;margin-inline-start:.5em;vertical-align:.12em}
 .sumback{display:block;width:max-content;font-family:var(--ui);font-size:.6em;font-weight:700;color:var(--ok);border:1px solid var(--ok);border-radius:999px;padding:.1em .7em;margin-bottom:.3em;cursor:pointer}
 /* mapping in the text: the paragraph being mapped, with its tools */
 .u.mapcur{border-inline:2px solid var(--accent);padding-inline:.6em;background:color-mix(in srgb,var(--accent) 6%,transparent)}
@@ -1172,7 +1172,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
       for(const [g,arr] of [...m].sort((p,q)=>p[0]-q[0])){ if(g<0) continue; const v=pv([f,g]); if(v<sp.sv||v>sp.ev) continue;
         arr.forEach(n=>{ if(n.t==="b") html+='<span class="sct">'+esc(n.x)+'</span>'; }); } }
     for(const c of cov()) if(c[0]>=sp.sv&&c[1]<=sp.ev){ const n=NOTES[c[2]+":"+c[3]+":-1"][c[4]]; html+='<span class="scs">'+esc(n.x)+'</span>'; }
-    html+='<span class="scw">'+amudName(F0.a)+(F1.a!==F0.a?" – "+amudName(F1.a):"")+' · לחיצה לפתיחת הטקסט</span>';
+    html+='<span class="scw">('+amudName(F0.a)+(F1.a!==F0.a?" – "+amudName(F1.a):"")+' · לטקסט)</span>';
     el.innerHTML=html; return el; }
   function afterSpan(sp){ const [f,g]=sp.e, x=F[f]; return g+1<gw(f)?{a:x.a,u:x.u,w:gToTok(x.a,x.u,g+1)}:next({a:x.a,u:x.u,w:0}); }
   function setSumv(on){ SUMV=on; EXP.clear(); $("sumvBtn").setAttribute("aria-pressed",String(on)); lsSet("sumv",on); }
