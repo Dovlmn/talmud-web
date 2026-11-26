@@ -120,6 +120,18 @@ button:disabled{opacity:.4;cursor:default}
 .recap{display:block;font-family:var(--ui);font-size:.68em;line-height:1.5;color:var(--ink);background:var(--soft);border-radius:8px;padding:.45em .7em;margin-bottom:.5em;white-space:pre-wrap}
 .recap b{color:var(--accent)}
 .bbtns{display:flex;gap:.5em;flex-wrap:wrap;margin-top:.5em}
+/* mapping in the text: the paragraph being mapped, with its tools */
+.u.mapcur{border-inline:2px solid var(--accent);padding-inline:.6em;background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.u.mapcur.mfirst{border-top:2px solid var(--accent);border-radius:12px 12px 0 0;padding-top:.45em}
+.u.mapcur.mlast{border-bottom:2px solid var(--accent);border-radius:0 0 12px 12px;padding-bottom:.5em}
+.u.mapcur.mfirst.mlast{border-radius:12px}
+.mtag{display:flex;justify-content:space-between;align-items:center;font-family:var(--ui);font-size:.6em;font-weight:700;color:var(--accent);margin-bottom:.3em}
+.msums{display:block;margin-top:.5em}
+.msum1{display:block;font-family:var(--ui);font-size:.68em;line-height:1.5;white-space:pre-wrap;border-inline-start:3px solid var(--ok);padding:.1em .6em;margin:.25em 0;cursor:pointer}
+.mbtns{display:flex;gap:.45em;flex-wrap:wrap;margin-top:.55em}
+.mbtns span{display:block;font-family:var(--ui);font-size:.68em;font-weight:700;border:1.5px solid var(--accent);color:var(--accent);border-radius:8px;padding:.28em .8em;cursor:pointer}
+.mbtns .mnext{background:var(--accent);color:var(--paper)}
+.mbtns .mend{border-color:var(--line);color:var(--muted)}
 .dayend{display:flex;align-items:center;gap:.6em;margin-top:.7em;font-family:var(--ui,system-ui,sans-serif);font-size:.62em;font-weight:700;color:var(--gold);letter-spacing:.02em;white-space:nowrap}
 .dayend::before,.dayend::after{content:"";flex:1;border-top:2px dotted var(--gold)}
 .bcont-btn{display:block;width:max-content;font-family:var(--ui);font-size:.7em;font-weight:700;color:var(--ok);border:1.5px solid var(--ok);border-radius:8px;padding:.3em .9em;cursor:pointer}
@@ -405,6 +417,17 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
           +(s?'<span class="recap"><b>קודם למדת:</b> '+esc(s.x)+'</span>':"")+pre; }
       if(fi===BITE.to-1&&w1>=words.length){ el.classList.add("blast"); post='<span class="bbtns"><span class="bdone-btn" role="button">✓ סיימתי</span><span class="bcont-btn" role="button">בוא נמשיך ←</span></span>'; }
     }
+    // mapping walk: frame the paragraph, its summaries and the tools
+    if(MAPQ&&MAPQ.list[MAPQ.i]===fi){
+      el.classList.add("mapcur");
+      if(w0===0){ el.classList.add("mfirst"); const left=MAPQ.list.length-MAPQ.i-1;
+        pre='<span class="mtag"><span>✎ '+esc(MAPQ.title)+' · '+(MAPQ.i+1)+' מתוך '+MAPQ.list.length+(MAPQ.more?" (ועוד)":"")+'</span><span class="mend-x bx2" role="button" aria-label="סיום המיפוי">✕</span></span>'+pre; }
+      if(w1>=words.length){ el.classList.add("mlast");
+        const sm=sumsFor(a,u);
+        post+=(sm.length?'<span class="msums">'+sm.map((n,i)=>'<span class="msum1" data-i="'+i+'" role="button">'+esc(n.x)+'</span>').join("")+'</span>':"")
+          +'<span class="mbtns"><span class="mtitle" role="button">+ כותרת</span><span class="msumb" role="button">'+(sm.length?"+ המשך סיכום":"+ סיכום")+'</span>'
+          +'<span class="mnext" role="button">'+(MAPQ.i+1<MAPQ.list.length||MAPQ.more?"הבא ←":"סיום ✓")+'</span><span class="mend" role="button">סיום</span></span>'; }
+    }
     // the end of today's reading
     const tp=ST.plan&&todayPortion();
     if(tp&&fi===tp.to-1&&w1>=words.length) post+='<span class="dayend" aria-label="סוף ההספק היומי">◆ סוף ההספק של היום ◆</span>';
@@ -579,6 +602,12 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(e.target.closest&&e.target.closest(".bdone-btn")){ finishBite(); return; }
     if(e.target.closest&&e.target.closest(".bcont-btn")){ finishBite(true); return; }
     if(e.target.closest&&e.target.closest(".bx")){ endBite(); keepPlace(); return; }
+    if(MAPQ&&e.target.closest){ const t=e.target, cur=F[MAPQ.list[MAPQ.i]];
+      if(t.closest(".mnext")){ mapStep(1); return; }
+      if(t.closest(".mend")||t.closest(".mend-x")){ endMapWalk(); return; }
+      if(t.closest(".mtitle")){ panelView="note"; renderNoteEditor(cur.a,cur.u,0,null,"b"); openPanel(); return; }
+      if(t.closest(".msumb")){ openSummary(cur.a,cur.u,0); return; }
+      const sx=t.closest(".msum1"); if(sx){ panelView="sum"; renderSummary(cur.a,cur.u,0,+sx.dataset.i); openPanel(); return; } }
     const r=e.target.closest&&e.target.closest(".ref");
     if(r){ openQuote(+r.dataset.q); return; }
     const w=wordOf(e.target); if(w) openWord(w.a,w.u,w.g);
@@ -748,7 +777,7 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     const save=()=>{ const x=ta.value.trim(), arr=[...list];
       if(cur){ if(x) arr[idx]={t:"s",x,d:cur.d||today()}; else arr.splice(idx,1); } else if(x) arr.push({t:"s",x,d:today()});
       if(arr.length) NOTES[key]=arr; else delete NOTES[key];
-      storeNotes(a); closePanel(); };
+      storeNotes(a); closePanel(); if(MAPQ) keepPlace(); };
     ta.addEventListener("keydown",e=>{ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){ e.preventDefault(); save(); } });
     panel.append(ta);
     let armed=false;
@@ -768,13 +797,13 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     panel.append(h("div",{class:"row"},h("button",{class:"primary",onclick:()=>renderNoteEditor(a,u,g,null)},"טקסט נוסף על המילה"),bmButton(a,u,g),
       h("button",{class:"ghost spacer",onclick:closePanel},"סגירה")));
   }
-  function renderNoteEditor(a,u,g,idx){
+  function renderNoteEditor(a,u,g,idx,preset){
     panel.innerHTML="";
     const list=notesFor(a,u,g), cur=idx!=null&&idx>=0?list[idx]:null;
     panel.append(contextEl(a,u,g));
     const ta=h("textarea",{id:"noteIn",rows:"3",dir:"rtl",placeholder:"הקלד או הכתב. שאלה: מסתיימת ב־? · כותרת: מתחילה במילה \"כותרת\" · רקע: מתחיל במילה \"רקע\" · כל השאר: הערה"});
     ta.value=cur?cur.x:"";
-    let type=cur?cur.t:"n", manual=!!cur;
+    let type=cur?cur.t:(preset||"n"), manual=!!cur||!!preset;
     const chips=h("div",{class:"seg3 seg4",role:"group","aria-label":"סוג הטקסט"});
     const sync=()=>chips.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.t===type)));
     for(const t of ["q","n","b","r"]) chips.append(h("button",{"data-t":t,class:"c-"+t,onclick:()=>{ type=t; manual=true; sync(); ta.focus(); }},TYPES[t]));
@@ -1024,64 +1053,44 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   function isMapped(a,u){ return sumsFor(a,u).length>0; }
   function unmappedToday(){ const p=ST.plan&&ST.day&&ST.day.d===dayNum()?ST.day:null; if(!p) return 0; let n=0;
     for(let f=p.from;f<Math.min(ST.pos,F.length);f++){ const x=F[f]; if(A[x.a][x.u][0]!=="h"&&!isMapped(x.a,x.u)) n++; } return n; }
-  // range {from,to} of flat units; evening: only paragraphs without a summary
-  function openMapping(r,after,evening){ panelView="mapping"; renderMapping(r,after,evening); openPanel(true); }
-  function renderMapping(r,after,evening,keepTop){
-    const top=keepTop!=null?keepTop:0;
-    panel.innerHTML="";
-    const fl=r.list||null; if(fl){ r.from=fl[0]; r.to=fl[fl.length-1]+1; }
-    const fa=F[r.from], la=F[Math.max(r.from,r.to-1)];
-    const where=fa?amudName(fa.a)+(la&&la.a!==fa.a?" – "+amudName(la.a):""):"";
-    panel.append(h("h2",{id:"panelTitle"},r.title||(evening?"מיפוי של היום":"מיפוי · "+MAPN+" הביסים האחרונים")));
-    panel.append(h("div",{class:"note"},where+" · כותרת לסוגיה, סיכום לפסקה (בקיצור). אפשר גם לדלג."));
-    const sums=(ST.sums||[]).filter(x=>x.f>=r.from&&x.t<=r.to);
-    if(sums.length) panel.append(h("div",{class:"mxsums"},h("b",{},"מה אמרת אחרי הביסים: "),sums.map(x=>x.x).join(" · ")));
-    const box=h("div",{class:"mapx"}); let shownN=0;
-    const rerender=()=>renderMapping(r,after,evening,box.scrollTop);
-    const editor=(ph,val,multi,onSave)=>{ const ta=multi?h("textarea",{rows:"3",dir:"rtl",placeholder:ph}):h("input",{type:"text",dir:"rtl",placeholder:ph});
-      ta.value=val||""; const ed=h("div",{class:"mxed"},ta,h("div",{class:"row"},h("button",{class:"primary",onclick:()=>onSave(ta.value.trim())},"שמירה"),h("button",{class:"ghost",onclick:rerender},"ביטול")));
-      ta.addEventListener("keydown",e=>{ if(e.key==="Enter"&&(!multi||e.metaKey||e.ctrlKey)){ e.preventDefault(); onSave(ta.value.trim()); } });
-      setTimeout(()=>{ try{ ta.focus(); }catch(e){} },30); return ed; };
-    const order=fl||Array.from({length:Math.max(0,Math.min(r.to,F.length)-r.from)},(_,i)=>r.from+i);
-    for(const f of order){
-      const {a,u}=F[f]; if(A[a][u][0]==="h") continue;
-      const sm=sumsFor(a,u); if(evening&&!fl&&isMapped(a,u)) continue;
-      shownN++;
-      const el=h("div",{class:"mxu"});
-      // titles inside this paragraph
-      for(const k of Object.keys(NOTES)){ const [ka,ku,kg]=k.split(":").map(Number); if(ka!==a||ku!==u||kg<0) continue;
-        NOTES[k].forEach((n,i)=>{ if(n.t!=="b") return; const t=h("div",{class:"mxt",title:"עריכה"},n.x);
-          t.onclick=()=>t.replaceWith(editor("כותרת",n.x,false,x=>{ const arr=[...NOTES[k]]; if(x) arr[i]={...n,x}; else arr.splice(i,1); if(arr.length) NOTES[k]=arr; else delete NOTES[k]; storeNotes(a); rerender(); }));
-          el.append(t); }); }
-      el.append(h("p",{class:"mxp"},plainText(a,u)));
-      sm.forEach((n,i)=>{ const t=h("div",{class:"mxs",title:"עריכה"},n.x);
-        t.onclick=()=>t.replaceWith(editor("סיכום",n.x,true,x=>{ const key=a+":"+u+":-1", arr=[...sumsFor(a,u)]; if(x) arr[i]={...n,x}; else arr.splice(i,1); if(arr.length) NOTES[key]=arr; else delete NOTES[key]; storeNotes(a); rerender(); }));
-        el.append(t); });
-      const acts=h("div",{class:"mxa"});
-      const addT=h("button",{class:"ghost"},"+ כותרת"), addS=h("button",{class:"ghost"},"+ סיכום");
-      addT.onclick=()=>acts.replaceWith(editor("כותרת לסוגיה שמתחילה כאן",null,false,x=>{ if(x){ const key=a+":"+u+":0"; NOTES[key]=[...(NOTES[key]||[]),{t:"b",x,d:today()}]; storeNotes(a); } rerender(); }));
-      addS.onclick=()=>acts.replaceWith(editor(sm.length?"ההמשך ייכנס מתחת לסיכום הקודם":"סיכום הפסקה במילים שלך",null,true,x=>{ if(x){ const key=a+":"+u+":-1"; NOTES[key]=[...sumsFor(a,u),{t:"s",x,d:today()}]; storeNotes(a); } rerender(); }));
-      acts.append(addT,addS); el.append(acts);
-      box.append(el);
-    }
-    if(!shownN) box.append(h("div",{class:"note"},evening?"כל הפסקאות של היום כבר ממופות.":"אין כאן טקסט למפות."));
-    if(r.more) panel.append(h("div",{class:"note"},"עוד "+r.more+(r.more===1?" פסקה קודמת":" פסקאות קודמות")+" מחכות למיפוי."));
-    panel.append(box);
-    const go=()=>{ closePanel(); keepPlace(); if(window.BABLI_WEB&&BABLI_WEB.progress) try{ BABLI_WEB.progress(); }catch(e){} after&&after(); };
-    panel.append(h("div",{class:"row"},r.more?h("button",{class:"primary",onclick:()=>openBackfill(r.below)},"← עוד, אחורה"):null,h("button",{class:r.more?"":"primary",onclick:go},after&&!evening?"סיימתי · ממשיכים ←":"סיימתי"),h("button",{class:"ghost spacer",onclick:go},"דילוג")));
-    box.scrollTop=top;
+  /* mapping walk: go paragraph by paragraph in the text itself, framed, with "+ כותרת", "+ סיכום", "הבא" */
+  var MAPQ=null;
+  function unmappedIn(from,to){ const out=[]; for(let f=from;f<Math.min(to,F.length);f++){ const x=F[f]; if(A[x.a][x.u][0]!=="h"&&!isMapped(x.a,x.u)) out.push(f); } return out; }
+  function startMapWalk(list,title,after){
+    if(!list.length){ after&&after(); return false; }
+    closePanel(); if(BITE) endBite();
+    MAPQ={list,i:0,title,after}; gotoMap(); return true;
   }
-  const BACKN=10;
-  // what is still unmapped, newest first, a handful at a time; "below" continues before the batch just shown
-  async function openBackfill(below){
+  // show the paragraph with a little of what comes before it, so it is read in context
+  function gotoMap(){ const f=MAPQ.list[MAPQ.i], pv=f>0?F[f-1]:null, x=F[f];
+    if(pv&&A[pv.a][pv.u][0]!=="h"){
+      layoutAt({a:pv.a,u:pv.u,w:0});
+      // keep the paragraph before only if the whole paragraph, with its tools, still fits on this screen
+      const sh=sheets()[pi]; if(sh&&sh.querySelector(".u.mapcur.mlast")) return; }
+    layoutAt({a:x.a,u:x.u,w:0}); }
+  function mapStep(d){ if(!MAPQ) return; const i=MAPQ.i+d; if(i>=MAPQ.list.length) return endMapWalk(); MAPQ.i=Math.max(0,i); gotoMap(); }
+  function endMapWalk(){ const q=MAPQ; MAPQ=null;
+    if(window.BABLI_WEB&&BABLI_WEB.progress) try{ BABLI_WEB.progress(); }catch(e){}
+    if(q&&q.after) q.after(); else keepPlace(); }
+  // after every fourth bite: an invitation (skippable) to map those bites, in the text
+  function openMapping(r,after){
+    const list=unmappedIn(r.from,r.to);
+    if(!list.length){ closePanel(); after&&after(); return; }
+    panelView="mapping"; panel.innerHTML="";
+    panel.append(h("h2",{id:"panelTitle"},"רגע של מיפוי"),
+      h("div",{},"ב־"+MAPN+" הביסים האחרונים יש "+list.length+(list.length===1?" פסקה":" פסקאות")+" בלי סיכום. נעבור עליהן בטקסט, אחת אחת: כותרת לסוגיה, סיכום לפסקה."),
+      h("div",{class:"row"},h("button",{class:"primary",onclick:()=>startMapWalk(list,"מיפוי "+MAPN+" הביסים",after)},"למפות עכשיו"),
+        h("button",{class:"ghost spacer",onclick:()=>{ closePanel(); after&&after(); }},"דילוג")));
+    openPanel();
+  }
+  // whenever I like: what is still unmapped, newest first, going back
+  async function openBackfill(){
     if(!ST.plan){ const k=await findPlanTr(); if(k&&k!==TR.key){ await loadTractate(k,null); try{ await storeP; }catch(e){} } }
     if(storeP){ try{ await storeP; }catch(e){} }
     if(!ST.plan){ toast("אין עדיין תוכנית לימוד, אז אין מה להשלים."); return; }
-    const lo=0, top=Math.min(below==null?ST.pos:below,ST.pos,F.length), all=[];
-    for(let f=top-1;f>=lo;f--){ const x=F[f]; if(A[x.a][x.u][0]!=="h"&&!isMapped(x.a,x.u)) all.push(f); }
-    if(!all.length){ toast(below==null?"✓ כל מה שלמדת כבר ממופה":"אין עוד פסקאות קודמות למיפוי"); if(!scrim.hidden&&panelView==="mapping") closePanel(); return; }
-    const batch=all.slice(0,BACKN), list=batch.slice().sort((x,y)=>x-y);
-    panelView="mapping"; renderMapping({list,title:"השלמת מיפוי",more:all.length-batch.length,below:list[0]},null,true); openPanel(true);
+    const list=unmappedIn(0,ST.pos).reverse();
+    if(!list.length){ toast("✓ כל מה שלמדת כבר ממופה"); return; }
+    startMapWalk(list,"השלמת מיפוי");
   }
   async function openEveningMap(){
     if(!ST.plan){ const k=await findPlanTr(); if(k&&k!==TR.key){ await loadTractate(k,null); try{ await storeP; }catch(e){} } }
@@ -1090,8 +1099,10 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
     if(!p||ST.pos<=p.from){
       // nothing read in the app today (Motzaei Shabbat: the learning was from a book): first mark where you got to
       const f=F[ST.pos]; if(f) layoutAt({a:f.a,u:f.u,w:0});
-      toast("סמן קודם עד היכן הגעת: לחיצה על המילה ← \"עצרתי כאן\". אחר כך \"מיפוי של היום\" במפה יציג את מה שלמדת.",null,null,9000); return; }
-    openMapping({from:p.from,to:ST.pos},null,true);
+      toast("סמן קודם עד היכן הגעת: לחיצה על המילה ← \"עצרתי כאן\". אחר כך \"מיפוי של היום\" במפה יעבור על מה שלמדת.",null,null,9000); return; }
+    const list=unmappedIn(p.from,ST.pos);
+    if(!list.length){ toast("✓ כל מה שלמדת היום כבר ממופה"); return; }
+    startMapWalk(list,"מיפוי של היום");
   }
   // finishing the whole day at once (reading straight through, without bites)
   function finishReading(){
