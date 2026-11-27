@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>window.BABLI_BUILD="20261127095435";</script>
+<script>window.BABLI_BUILD="20261127100921";</script>
 <script src="config.js"></script>
 <script src="webapp.js"></script>
 <style>
@@ -200,6 +200,12 @@ button:disabled{opacity:.4;cursor:default}
 /* panels */
 .scrim{position:fixed;inset:0;z-index:20;background:rgb(0 0 0 / .28);display:flex;align-items:flex-start;justify-content:center;
   padding:calc(52px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 12px max(12px,env(safe-area-inset-left,0px))}
+/* any window can be moved by its top strip, so it does not hide what you want to see while writing */
+.pdrag{display:flex;justify-content:center;align-items:center;gap:6px;height:20px;margin:-10px -6px 4px;cursor:grab;touch-action:none;user-select:none;
+  font-size:.68rem;color:var(--muted)}
+.pdrag::before{content:"";width:44px;height:5px;border-radius:3px;background:var(--muted);opacity:.5}
+.pdrag:active{cursor:grabbing}
+.scrim.see{background:rgb(0 0 0 / .07)}
 .panel{background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgb(0 0 0 / .2);
   width:min(34rem,100%);max-height:100%;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:14px;font-size:.95rem;line-height:1.5;box-sizing:border-box}
 .panel.wide{width:min(46rem,100%)}
@@ -712,7 +718,32 @@ label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85
   window.addEventListener("hashchange",()=>{ const x=parseHash(); if(x!=null&&A&&A[x]&&x!==current) layout(x); });
 
   /* ---------- panels ---------- */
-  function openPanel(wide){ panel.className="panel"+(wide?" wide":""); scrim.hidden=false; }
+  let PPOS=(()=>{ try{ return JSON.parse(lsGet("ppos","null")); }catch(e){ return null; } })();
+  function placePanel(){ panel.style.transform=PPOS?"translate("+PPOS.x+"px,"+PPOS.y+"px)":"";
+    // a remembered place that no longer fits this screen is pulled back in
+    if(PPOS&&!scrim.hidden){ const r=panel.getBoundingClientRect(); let dx=0,dy=0;
+      if(r.top>innerHeight-60) dy=innerHeight-60-r.top; if(r.top<0) dy=-r.top;
+      if(r.right<80) dx=80-r.right; if(r.left>innerWidth-80) dx=innerWidth-80-r.left;
+      if(dx||dy){ PPOS={x:PPOS.x+dx,y:PPOS.y+dy}; panel.style.transform="translate("+PPOS.x+"px,"+PPOS.y+"px)"; } } }
+  function addDrag(){ if(panel.querySelector(".pdrag")) return; const d=h("div",{class:"pdrag",title:"גרירה להזזת החלון · לחיצה כפולה מחזירה למקום"});
+      d.addEventListener("pointerdown",e=>{ e.preventDefault(); d.setPointerCapture(e.pointerId);
+        const x0=e.clientX, y0=e.clientY, p0=PPOS||{x:0,y:0}, r=panel.getBoundingClientRect();
+        const mv=ev=>{ let x=p0.x+ev.clientX-x0, y=p0.y+ev.clientY-y0;
+          // keep at least the strip on screen
+          const left=r.left+(x-p0.x), top=r.top+(y-p0.y);
+          if(left<-r.width+80) x+=-r.width+80-left; if(left>innerWidth-80) x-=left-(innerWidth-80);
+          if(top<0) y-=top; if(top>innerHeight-40) y-=top-(innerHeight-40);
+          PPOS={x,y}; placePanel(); };
+        const up=()=>{ d.removeEventListener("pointermove",mv); lsSet("ppos",JSON.stringify(PPOS)); };
+        d.addEventListener("pointermove",mv); d.addEventListener("pointerup",up,{once:true}); d.addEventListener("pointercancel",up,{once:true}); });
+      d.addEventListener("dblclick",()=>{ PPOS=null; lsSet("ppos","null"); placePanel(); });
+      panel.prepend(d); }
+  // a window redrawn while open gets its strip back
+  new MutationObserver(()=>{ if(!scrim.hidden&&panel.firstChild&&!panel.querySelector(".pdrag")) addDrag(); }).observe(panel,{childList:true});
+  function openPanel(wide){ panel.className="panel"+(wide?" wide":""); scrim.hidden=false;
+    // writing windows: the text behind stays clear
+    scrim.classList.toggle("see",panelView==="note"||panelView==="sum");
+    addDrag(); placePanel(); }
   function closePanel(){ scrim.hidden=true; panel.innerHTML=""; panel.style.width=""; }
   scrim.addEventListener("click",e=>{ if(e.target===scrim) closePanel(); });
 
